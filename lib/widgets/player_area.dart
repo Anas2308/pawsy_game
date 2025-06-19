@@ -8,17 +8,17 @@ class PlayerArea extends StatelessWidget {
   final Player player;
   final bool isCompact;
   final bool showDrawnCard;
-  final bool isLookingAtCards; // Neue Property
+  final bool isLookingAtCards;
   final Function(int)? onCardTap;
 
   const PlayerArea({
-    Key? key,
+    super.key,
     required this.player,
     this.isCompact = false,
     this.showDrawnCard = false,
-    this.isLookingAtCards = false, // Neue Property
+    this.isLookingAtCards = false,
     this.onCardTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,6 @@ class PlayerArea extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Spielername (oben, außer bei Human Player)
           if (!player.isHuman)
             Text(
               '${player.name} (${player.cards.length} Karten)',
@@ -37,20 +36,14 @@ class PlayerArea extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
           const SizedBox(height: 8),
-
-          // Karten
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(4, (index) {
               return _buildCard(index);
             }),
           ),
-
           const SizedBox(height: 8),
-
-          // Spielername (unten, nur bei Human Player)
           if (player.isHuman)
             Text(
               '${player.name} (${player.cards.length} Karten)',
@@ -73,10 +66,8 @@ class PlayerArea extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (isLookingAtCards && player.isHuman && hasCard && !card!.isVisible) {
-          // Beim Start: Karte anschauen
           onCardTap?.call(index);
         } else if (isPlayerCard && showDrawnCard) {
-          // Im Spiel: Karte tauschen
           onCardTap?.call(index);
         }
       },
@@ -106,7 +97,7 @@ class PlayerArea extends StatelessWidget {
 
     if (player.isHuman) {
       if (isLookingAtCards && hasCard && !card!.isVisible) {
-        return AppColors.interactiveCard; // Gelb für "anklickbar"
+        return AppColors.interactiveCard;
       }
       if (isPlayerCard && showDrawnCard) {
         return AppColors.interactiveCard;
@@ -118,8 +109,9 @@ class PlayerArea extends StatelessWidget {
   }
 
   Color _getCardBorderColor(bool hasCard, bool isPlayerCard) {
-    if (isLookingAtCards && player.isHuman && hasCard)
+    if (isLookingAtCards && player.isHuman && hasCard) {
       return AppColors.selectedCard;
+    }
     if (isPlayerCard && showDrawnCard) return AppColors.selectedCard;
     return hasCard ? AppColors.textPrimary : AppColors.border;
   }
@@ -140,7 +132,6 @@ class PlayerArea extends StatelessWidget {
     }
 
     if (player.isHuman && card?.isVisible == true) {
-      // Zeige Kartenwert für sichtbare Spielerkarten
       return Text(
         '${card!.value}',
         style: TextStyle(
@@ -151,11 +142,28 @@ class PlayerArea extends StatelessWidget {
       );
     }
 
-    // Zeige Kartenrücken
-    return Icon(
-      Icons.pets,
-      color: AppColors.textPrimary,
-      size: isCompact ? 20 : 30,
+    // Zeige Kartenrücken mit Hintergrundbild
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/starter.png'),
+          fit: BoxFit.cover,
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.3),
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.pets,
+            color: AppColors.textPrimary,
+            size: isCompact ? 20 : 30,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -182,35 +182,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/starter.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2)),
-          child: Consumer<GameController>(
-            builder: (context, gameController, child) {
-              final gameState = gameController.gameState;
+      body: Consumer<GameController>(
+        builder: (context, gameController, child) {
+          final gameState = gameController.gameState;
 
-              return Column(
-                children: [
-                  _buildGameInfo(gameState),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        _buildGameLayout(gameState, gameController),
-                        _buildAnimations(gameState),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
+          return Column(
+            children: [
+              _buildGameInfo(gameState),
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildGameLayout(gameState, gameController),
+                    _buildAnimations(gameState),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
