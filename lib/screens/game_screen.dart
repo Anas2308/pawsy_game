@@ -313,27 +313,53 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-        if (gameState.isPlaying)
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: gameState.canCallPawsy
-                  ? () => gameController.callPawsy()
-                  : null,
-              icon: const Icon(Icons.pets),
-              label: Text(GameStrings.pawsyButton),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: gameState.canCallPawsy
-                    ? Colors.orange[600]
-                    : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                'Phase: ${gameState.phase}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Can Call PAWSY: ${gameState.canCallPawsy}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed:
+                    (gameState.isPlaying &&
+                        gameState.isHumanTurn &&
+                        gameState.canCallPawsy)
+                    ? () => gameController.callPawsy()
+                    : null,
+                icon: const Icon(Icons.pets),
+                label: Text(GameStrings.pawsyButton),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      (gameState.isPlaying &&
+                          gameState.isHumanTurn &&
+                          gameState.canCallPawsy)
+                      ? Colors.orange[600]
+                      : Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -394,27 +420,53 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-        if (gameState.isPlaying)
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: gameState.canCallPawsy
-                  ? () => gameController.callPawsy()
-                  : null,
-              icon: const Icon(Icons.pets),
-              label: Text(GameStrings.pawsyButton),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: gameState.canCallPawsy
-                    ? Colors.orange[600]
-                    : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                'Phase: ${gameState.phase}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Can Call PAWSY: ${gameState.canCallPawsy}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed:
+                    (gameState.isPlaying &&
+                        gameState.isHumanTurn &&
+                        gameState.canCallPawsy)
+                    ? () => gameController.callPawsy()
+                    : null,
+                icon: const Icon(Icons.pets),
+                label: Text(GameStrings.pawsyButton),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      (gameState.isPlaying &&
+                          gameState.isHumanTurn &&
+                          gameState.canCallPawsy)
+                      ? Colors.orange[600]
+                      : Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -488,27 +540,53 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-        if (gameState.isPlaying)
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: gameState.canCallPawsy
-                  ? () => gameController.callPawsy()
-                  : null,
-              icon: const Icon(Icons.pets),
-              label: Text(GameStrings.pawsyButton),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: gameState.canCallPawsy
-                    ? Colors.orange[600]
-                    : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                'Phase: ${gameState.phase}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Can Call PAWSY: ${gameState.canCallPawsy}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed:
+                    (gameState.isPlaying &&
+                        gameState.isHumanTurn &&
+                        gameState.canCallPawsy)
+                    ? () => gameController.callPawsy()
+                    : null,
+                icon: const Icon(Icons.pets),
+                label: Text(GameStrings.pawsyButton),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      (gameState.isPlaying &&
+                          gameState.isHumanTurn &&
+                          gameState.canCallPawsy)
+                      ? Colors.orange[600]
+                      : Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -595,27 +673,53 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-        if (gameState.isPlaying)
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: gameState.canCallPawsy
-                  ? () => gameController.callPawsy()
-                  : null,
-              icon: const Icon(Icons.pets),
-              label: Text(GameStrings.pawsyButton),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: gameState.canCallPawsy
-                    ? Colors.orange[600]
-                    : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                'Phase: ${gameState.phase}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                'Can Call PAWSY: ${gameState.canCallPawsy}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed:
+                    (gameState.isPlaying &&
+                        gameState.isHumanTurn &&
+                        gameState.canCallPawsy)
+                    ? () => gameController.callPawsy()
+                    : null,
+                icon: const Icon(Icons.pets),
+                label: Text(GameStrings.pawsyButton),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      (gameState.isPlaying &&
+                          gameState.isHumanTurn &&
+                          gameState.canCallPawsy)
+                      ? Colors.orange[600]
+                      : Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
