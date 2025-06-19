@@ -7,9 +7,9 @@ class AppColors {
 
   // Karten-Farben
   static const Color playerCard = Colors.orange;
-  static final Color? opponentCard = Colors.blue[900];
-  static final Color? emptyCard = Colors.grey[600];
-  static final Color? deckCard = Colors.purple[900];
+  static const Color opponentCard = Color(0xFF1565C0); // Colors.blue[900]
+  static const Color emptyCard = Color(0xFF616161); // Colors.grey[600]
+  static const Color deckCard = Color(0xFF4A148C); // Colors.purple[900]
 
   // Interaktion
   static const Color selectedCard = Colors.yellow;
@@ -17,8 +17,8 @@ class AppColors {
 
   // UI Elemente
   static const Color textPrimary = Colors.white;
-  static final Color? textSecondary = Colors.white70;
-  static final Color? border = Colors.grey[400];
+  static const Color textSecondary = Color(0xFFE0E0E0); // Colors.white70
+  static const Color border = Color(0xFFBDBDBD); // Colors.grey[400]
 }
 
 class CardSizes {
