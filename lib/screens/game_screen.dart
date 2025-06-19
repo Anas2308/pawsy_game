@@ -156,6 +156,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(
         title: const Text(GameStrings.appTitle),
+        backgroundColor: Colors.green[800]?.withOpacity(
+          0.9,
+        ), // Leicht transparent
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -183,31 +186,46 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      body: Consumer<GameController>(
-        builder: (context, gameController, child) {
-          final gameState = gameController.gameState;
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/background.png'), // DEIN BILD HIER
+            fit: BoxFit.cover, // Bild füllt ganzen Bildschirm
+          ),
+        ),
+        child: Consumer<GameController>(
+          builder: (context, gameController, child) {
+            final gameState = gameController.gameState;
 
-          return Column(
-            children: [
-              _buildGameInfo(gameState),
-              Expanded(
-                child: Stack(
-                  children: [
-                    _buildGameLayout(gameState, gameController),
-                    _buildAnimations(gameState),
-                  ],
+            return Column(
+              children: [
+                _buildGameInfo(gameState),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      _buildGameLayout(gameState, gameController),
+                      _buildAnimations(gameState),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildGameInfo(GameState gameState) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(
+          alpha: 0.6,
+        ), // Halbtransparenter Hintergrund
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
           Text(
@@ -225,6 +243,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               fontSize: 14,
             ),
           ),
+          if (gameState.isLookingAtCards)
+            const Text(
+              GameStrings.lookAtCards,
+              style: TextStyle(
+                color: Colors.yellow,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           if (gameState.isDealing)
             Text(
               'Teile Karte ${gameState.currentDealingCard + 1} an ${gameState.players.isNotEmpty ? gameState.players[gameState.dealingToPlayerIndex].name : 'Spieler'} aus...',
@@ -267,6 +294,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           PlayerArea(
             player: gameState.players[1],
             showDrawnCard: gameState.showDrawnCard,
+            isLookingAtCards: gameState.isLookingAtCards,
           ),
         const Spacer(),
         CenterStacks(
@@ -290,7 +318,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           PlayerArea(
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
-            onCardTap: (index) => gameController.swapWithPlayerCard(index),
+            isLookingAtCards: gameState.isLookingAtCards,
+            onCardTap: (index) {
+              if (gameState.isLookingAtCards) {
+                gameController.lookAtStartCard(index);
+              } else {
+                gameController.swapWithPlayerCard(index);
+              }
+            },
+          ),
+
+        // PAWSY Button
+        if (gameState.isPlaying)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: gameState.canCallPawsy
+                  ? () => gameController.callPawsy()
+                  : null,
+              icon: const Icon(Icons.pets),
+              label: Text(GameStrings.pawsyButton),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gameState.canCallPawsy
+                    ? Colors.orange[600]
+                    : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -310,12 +368,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 player: gameState.players[1],
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
+                isLookingAtCards: gameState.isLookingAtCards,
               ),
             if (gameState.players.length > 2)
               PlayerArea(
                 player: gameState.players[2],
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
+                isLookingAtCards: gameState.isLookingAtCards,
               ),
           ],
         ),
@@ -341,7 +401,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           PlayerArea(
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
-            onCardTap: (index) => gameController.swapWithPlayerCard(index),
+            isLookingAtCards: gameState.isLookingAtCards,
+            onCardTap: (index) {
+              if (gameState.isLookingAtCards) {
+                gameController.lookAtStartCard(index);
+              } else {
+                gameController.swapWithPlayerCard(index);
+              }
+            },
+          ),
+
+        // PAWSY Button
+        if (gameState.isPlaying)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: gameState.canCallPawsy
+                  ? () => gameController.callPawsy()
+                  : null,
+              icon: const Icon(Icons.pets),
+              label: Text(GameStrings.pawsyButton),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gameState.canCallPawsy
+                    ? Colors.orange[600]
+                    : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -357,6 +447,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           PlayerArea(
             player: gameState.players[2],
             showDrawnCard: gameState.showDrawnCard,
+            isLookingAtCards: gameState.isLookingAtCards,
           ),
         Expanded(
           child: Row(
@@ -368,6 +459,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     player: gameState.players[1],
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
+                    isLookingAtCards: gameState.isLookingAtCards,
                   ),
                 ),
               Expanded(
@@ -395,6 +487,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     player: gameState.players[3],
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
+                    isLookingAtCards: gameState.isLookingAtCards,
                   ),
                 ),
             ],
@@ -404,7 +497,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           PlayerArea(
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
-            onCardTap: (index) => gameController.swapWithPlayerCard(index),
+            isLookingAtCards: gameState.isLookingAtCards,
+            onCardTap: (index) {
+              if (gameState.isLookingAtCards) {
+                gameController.lookAtStartCard(index);
+              } else {
+                gameController.swapWithPlayerCard(index);
+              }
+            },
+          ),
+
+        // PAWSY Button
+        if (gameState.isPlaying)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: gameState.canCallPawsy
+                  ? () => gameController.callPawsy()
+                  : null,
+              icon: const Icon(Icons.pets),
+              label: Text(GameStrings.pawsyButton),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gameState.canCallPawsy
+                    ? Colors.orange[600]
+                    : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -424,12 +547,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 player: gameState.players[2],
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
+                isLookingAtCards: gameState.isLookingAtCards,
               ),
             if (gameState.players.length > 3)
               PlayerArea(
                 player: gameState.players[3],
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
+                isLookingAtCards: gameState.isLookingAtCards,
               ),
           ],
         ),
@@ -443,6 +568,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     player: gameState.players[1],
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
+                    isLookingAtCards: gameState.isLookingAtCards,
                   ),
                 ),
               Expanded(
@@ -470,6 +596,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     player: gameState.players[4],
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
+                    isLookingAtCards: gameState.isLookingAtCards,
                   ),
                 ),
             ],
@@ -479,7 +606,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           PlayerArea(
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
-            onCardTap: (index) => gameController.swapWithPlayerCard(index),
+            isLookingAtCards: gameState.isLookingAtCards,
+            onCardTap: (index) {
+              if (gameState.isLookingAtCards) {
+                gameController.lookAtStartCard(index);
+              } else {
+                gameController.swapWithPlayerCard(index);
+              }
+            },
+          ),
+
+        // PAWSY Button
+        if (gameState.isPlaying)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: gameState.canCallPawsy
+                  ? () => gameController.callPawsy()
+                  : null,
+              icon: const Icon(Icons.pets),
+              label: Text(GameStrings.pawsyButton),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gameState.canCallPawsy
+                    ? Colors.orange[600]
+                    : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -612,7 +769,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           blurRadius: 10,
                           offset: const Offset(0, 5),
                         ),

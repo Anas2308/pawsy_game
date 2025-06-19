@@ -8,6 +8,7 @@ class PlayerArea extends StatelessWidget {
   final Player player;
   final bool isCompact;
   final bool showDrawnCard;
+  final bool isLookingAtCards; // Neue Property
   final Function(int)? onCardTap;
 
   const PlayerArea({
@@ -15,6 +16,7 @@ class PlayerArea extends StatelessWidget {
     required this.player,
     this.isCompact = false,
     this.showDrawnCard = false,
+    this.isLookingAtCards = false, // Neue Property
     this.onCardTap,
   }) : super(key: key);
 
@@ -69,9 +71,15 @@ class PlayerArea extends StatelessWidget {
     GameCard? card = hasCard ? player.cards[index] : null;
 
     return GestureDetector(
-      onTap: isPlayerCard && showDrawnCard
-          ? () => onCardTap?.call(index)
-          : null,
+      onTap: () {
+        if (isLookingAtCards && player.isHuman && hasCard && !card!.isVisible) {
+          // Beim Start: Karte anschauen
+          onCardTap?.call(index);
+        } else if (isPlayerCard && showDrawnCard) {
+          // Im Spiel: Karte tauschen
+          onCardTap?.call(index);
+        }
+      },
       child: Container(
         width: isCompact ? CardSizes.compactWidth : CardSizes.normalWidth,
         height: isCompact ? CardSizes.compactHeight : CardSizes.normalHeight,
@@ -97,6 +105,9 @@ class PlayerArea extends StatelessWidget {
     if (!hasCard) return AppColors.emptyCard;
 
     if (player.isHuman) {
+      if (isLookingAtCards && hasCard && !card!.isVisible) {
+        return AppColors.interactiveCard; // Gelb für "anklickbar"
+      }
       if (isPlayerCard && showDrawnCard) {
         return AppColors.interactiveCard;
       }
@@ -107,11 +118,14 @@ class PlayerArea extends StatelessWidget {
   }
 
   Color _getCardBorderColor(bool hasCard, bool isPlayerCard) {
+    if (isLookingAtCards && player.isHuman && hasCard)
+      return AppColors.selectedCard;
     if (isPlayerCard && showDrawnCard) return AppColors.selectedCard;
     return hasCard ? AppColors.textPrimary : AppColors.border;
   }
 
   double _getCardBorderWidth(bool hasCard, bool isPlayerCard) {
+    if (isLookingAtCards && player.isHuman && hasCard) return 3;
     if (isPlayerCard && showDrawnCard) return 3;
     return hasCard ? 2 : 1;
   }

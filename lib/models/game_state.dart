@@ -2,7 +2,12 @@
 import 'player.dart';
 import 'card.dart';
 
-enum GamePhase { dealing, playing, gameOver }
+enum GamePhase {
+  dealing,
+  lookingAtCards, // Neue Phase: 2 Karten anschauen
+  playing,
+  gameOver,
+}
 
 class GameState {
   final List<Player> players;
@@ -13,6 +18,8 @@ class GameState {
   final int currentPlayerIndex;
   final bool showDrawnCard;
   final bool isDrawingFromDiscard;
+  final bool hasDrawnCardThisTurn; // Neue Regel: Hat Karte gezogen diese Runde
+  final int cardsLookedAt; // Anzahl angeschauter Karten beim Start
 
   // Dealing Animation State
   final int currentDealingCard;
@@ -27,6 +34,8 @@ class GameState {
     this.currentPlayerIndex = 0,
     this.showDrawnCard = false,
     this.isDrawingFromDiscard = false,
+    this.hasDrawnCardThisTurn = false,
+    this.cardsLookedAt = 0,
     this.currentDealingCard = 0,
     this.dealingToPlayerIndex = 0,
   });
@@ -38,6 +47,8 @@ class GameState {
 
   bool get isDealing => phase == GamePhase.dealing;
 
+  bool get isLookingAtCards => phase == GamePhase.lookingAtCards;
+
   bool get isPlaying => phase == GamePhase.playing;
 
   bool get isGameOver => phase == GamePhase.gameOver;
@@ -48,6 +59,9 @@ class GameState {
 
   bool get canDrawCard => isPlaying && !showDrawnCard && !isDrawingFromDiscard;
 
+  bool get canCallPawsy =>
+      isPlaying && !hasDrawnCardThisTurn && humanPlayer.visibleCardsCount >= 2;
+
   GameState copyWith({
     List<Player>? players,
     List<int>? deck,
@@ -57,6 +71,8 @@ class GameState {
     int? currentPlayerIndex,
     bool? showDrawnCard,
     bool? isDrawingFromDiscard,
+    bool? hasDrawnCardThisTurn,
+    int? cardsLookedAt,
     int? currentDealingCard,
     int? dealingToPlayerIndex,
   }) {
@@ -69,6 +85,8 @@ class GameState {
       currentPlayerIndex: currentPlayerIndex ?? this.currentPlayerIndex,
       showDrawnCard: showDrawnCard ?? this.showDrawnCard,
       isDrawingFromDiscard: isDrawingFromDiscard ?? this.isDrawingFromDiscard,
+      hasDrawnCardThisTurn: hasDrawnCardThisTurn ?? this.hasDrawnCardThisTurn,
+      cardsLookedAt: cardsLookedAt ?? this.cardsLookedAt,
       currentDealingCard: currentDealingCard ?? this.currentDealingCard,
       dealingToPlayerIndex: dealingToPlayerIndex ?? this.dealingToPlayerIndex,
     );

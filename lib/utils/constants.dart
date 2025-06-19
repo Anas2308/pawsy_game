@@ -64,10 +64,13 @@ class GameStrings {
 
   // Spielphasen
   static const String dealing = 'Teile Karten aus...';
+  static const String lookAtCards = 'Schaue dir 2 deiner Karten an!';
   static const String yourTurn = 'Du bist dran!';
   static const String opponentTurn = 'Gegner ist dran...';
   static const String cardDrawn = 'Gezogene Karte:';
   static const String clickToInteract =
       'Klicke Ablagestapel oder deine Karten!';
   static const String drawingFromDiscard = 'Ziehe Karte vom Ablagestapel...';
+  static const String pawsyButton = 'PAWSY!';
+  static const String pawsyDisabled = 'Ziehe keine Karte um PAWSY zu rufen!';
 }
