@@ -8,7 +8,7 @@ import '../widgets/center_stacks.dart';
 import '../utils/constants.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({Key? key}) : super(key: key);
+  const GameScreen({super.key});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -30,7 +30,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimations();
 
-    // Automatisch neues Spiel starten
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<GameController>().startNewGame(playerCount);
       _startDealingAnimation();
@@ -122,7 +121,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         });
       });
     } else {
-      // Austeilen beendet
       gameController.dealNextCard();
     }
   }
@@ -156,9 +154,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(
         title: const Text(GameStrings.appTitle),
-        backgroundColor: Colors.green[800]?.withOpacity(
-          0.9,
-        ), // Leicht transparent
+        backgroundColor: Colors.green[800]?.withValues(alpha: 0.9),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -189,28 +185,31 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/background.png'), // DEIN BILD HIER
-            fit: BoxFit.cover, // Bild füllt ganzen Bildschirm
+            image: AssetImage('assets/images/starter.png'),
+            fit: BoxFit.cover,
           ),
         ),
-        child: Consumer<GameController>(
-          builder: (context, gameController, child) {
-            final gameState = gameController.gameState;
+        child: Container(
+          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2)),
+          child: Consumer<GameController>(
+            builder: (context, gameController, child) {
+              final gameState = gameController.gameState;
 
-            return Column(
-              children: [
-                _buildGameInfo(gameState),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      _buildGameLayout(gameState, gameController),
-                      _buildAnimations(gameState),
-                    ],
+              return Column(
+                children: [
+                  _buildGameInfo(gameState),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        _buildGameLayout(gameState, gameController),
+                        _buildAnimations(gameState),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -221,9 +220,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       margin: const EdgeInsets.all(8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(
-          alpha: 0.6,
-        ), // Halbtransparenter Hintergrund
+        color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -327,8 +324,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-
-        // PAWSY Button
         if (gameState.isPlaying)
           Container(
             padding: const EdgeInsets.all(16),
@@ -410,8 +405,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-
-        // PAWSY Button
         if (gameState.isPlaying)
           Container(
             padding: const EdgeInsets.all(16),
@@ -506,8 +499,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-
-        // PAWSY Button
         if (gameState.isPlaying)
           Container(
             padding: const EdgeInsets.all(16),
@@ -615,8 +606,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               }
             },
           ),
-
-        // PAWSY Button
         if (gameState.isPlaying)
           Container(
             padding: const EdgeInsets.all(16),
@@ -645,7 +634,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildAnimations(GameState gameState) {
     return Stack(
       children: [
-        // Austeil-Animation
         if (gameState.isDealing)
           AnimatedBuilder(
             animation: _cardAnimation,
@@ -676,8 +664,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               );
             },
           ),
-
-        // Ablagestapel-Zieh-Animation
         if (gameState.isDrawingFromDiscard && gameState.drawnCard != null)
           AnimatedBuilder(
             animation: _discardDrawController,
@@ -744,8 +730,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               );
             },
           ),
-
-        // Gezogene Karte in der Mitte
         if (gameState.showDrawnCard &&
             gameState.drawnCard != null &&
             !gameState.isDrawingFromDiscard)

@@ -11,12 +11,9 @@ class GameController extends ChangeNotifier {
 
   GameState get gameState => _gameState;
 
-  /// Startet ein neues Spiel
   void startNewGame(int playerCount) {
-    // Deck erstellen
     List<int> deck = DeckController.createCaboDeck();
 
-    // Spieler erstellen
     List<Player> players = [];
     for (int i = 0; i < playerCount; i++) {
       players.add(
@@ -24,7 +21,7 @@ class GameController extends ChangeNotifier {
           name: i == 0 ? GameStrings.humanPlayer : GameStrings.aiPlayer(i + 1),
           cards: [],
           playerIndex: i,
-          isHuman: i == 0, // Erster Spieler ist immer human
+          isHuman: i == 0,
         ),
       );
     }
@@ -42,11 +39,9 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Nächste Karte beim Austeilen
   void dealNextCard() {
     if (_gameState.currentDealingCard >=
         _gameState.playerCount * GameConstants.maxCardsPerPlayer) {
-      // Alle Karten ausgeteilt - Spielstart-Phase beginnen
       int? discardCard = DeckController.drawCard(_gameState.deck);
       if (discardCard != null) {
         _gameState = _gameState.copyWith(
@@ -57,7 +52,6 @@ class GameController extends ChangeNotifier {
         print('👀 Schaue dir 2 deiner Karten an!');
       }
     } else {
-      // Karte an aktuellen Spieler austeilen
       int? card = DeckController.drawCard(_gameState.deck);
       if (card != null) {
         List<Player> updatedPlayers = List.from(_gameState.players);
@@ -81,15 +75,17 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Spieler schaut sich eine Karte beim Start an
   void lookAtStartCard(int cardIndex) {
-    if (!_gameState.isLookingAtCards || _gameState.cardsLookedAt >= 2) return;
+    if (!_gameState.isLookingAtCards || _gameState.cardsLookedAt >= 2) {
+      return;
+    }
 
-    // Karte sichtbar machen
     List<Player> updatedPlayers = List.from(_gameState.players);
     Player humanPlayer = updatedPlayers[0];
 
-    if (cardIndex >= humanPlayer.cards.length) return;
+    if (cardIndex >= humanPlayer.cards.length) {
+      return;
+    }
 
     List<GameCard> updatedCards = List.from(humanPlayer.cards);
     updatedCards[cardIndex] = updatedCards[cardIndex].copyWith(isVisible: true);
@@ -105,7 +101,6 @@ class GameController extends ChangeNotifier {
       '👀 Karte ${cardIndex + 1} angeschaut: ${updatedCards[cardIndex].value}',
     );
 
-    // Nach 2 Karten → Spielphase starten
     if (_gameState.cardsLookedAt >= 2) {
       Future.delayed(const Duration(seconds: 2), () {
         _startPlayingPhase();
@@ -115,20 +110,23 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Startet die eigentliche Spielphase
-  void _startPlayingPhase() {
-    // Alle Karten wieder verdecken (außer die 2 angeschauten)
+  void _hideAllPlayerCards() {
     List<Player> updatedPlayers = List.from(_gameState.players);
     Player humanPlayer = updatedPlayers[0];
 
-    List<GameCard> updatedCards = List.from(humanPlayer.cards);
-    // Die angeschauten Karten bleiben sichtbar
-    // (isVisible bleibt true für die 2 Karten)
+    List<GameCard> updatedCards = humanPlayer.cards
+        .map((card) => card.copyWith(isVisible: false))
+        .toList();
 
     updatedPlayers[0] = humanPlayer.copyWith(cards: updatedCards);
 
+    _gameState = _gameState.copyWith(players: updatedPlayers);
+  }
+
+  void _startPlayingPhase() {
+    _hideAllPlayerCards();
+
     _gameState = _gameState.copyWith(
-      players: updatedPlayers,
       phase: GamePhase.playing,
       hasDrawnCardThisTurn: false,
     );
@@ -137,16 +135,17 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Karte vom Deck ziehen
   void drawCardFromDeck() {
-    if (!_gameState.canDrawCard) return;
+    if (!_gameState.canDrawCard) {
+      return;
+    }
 
     int? card = DeckController.drawCard(_gameState.deck);
     if (card != null) {
       _gameState = _gameState.copyWith(
         drawnCard: GameCard(value: card, isVisible: true),
         showDrawnCard: true,
-        hasDrawnCardThisTurn: true, // Karte gezogen → kein PAWSY mehr möglich
+        hasDrawnCardThisTurn: true,
       );
 
       print('🎴 Karte vom Deck gezogen: $card');
@@ -154,12 +153,12 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// Karte vom Ablagestapel ziehen
   void drawCardFromDiscard() {
     if (_gameState.showDrawnCard ||
         _gameState.isDrawingFromDiscard ||
-        _gameState.discardPile == null)
+        _gameState.discardPile == null) {
       return;
+    }
 
     _gameState = _gameState.copyWith(
       drawnCard: GameCard(
@@ -167,7 +166,7 @@ class GameController extends ChangeNotifier {
         isVisible: true,
       ),
       isDrawingFromDiscard: true,
-      hasDrawnCardThisTurn: true, // Karte gezogen → kein PAWSY mehr möglich
+      hasDrawnCardThisTurn: true,
     );
 
     print(
@@ -176,7 +175,6 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Animation für Ablagestapel-Ziehen beendet
   void finishDrawingFromDiscard() {
     _gameState = _gameState.copyWith(
       showDrawnCard: true,
@@ -185,37 +183,39 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Gezogene Karte auf Ablagestapel ablegen
   void discardDrawnCard() {
-    if (_gameState.drawnCard == null) return;
+    if (_gameState.drawnCard == null) {
+      return;
+    }
 
     _gameState = _gameState.copyWith(
       discardPile: _gameState.drawnCard,
       drawnCard: null,
       showDrawnCard: false,
-      hasDrawnCardThisTurn: false, // Zug beendet
+      hasDrawnCardThisTurn: false,
     );
 
     print('🗂️ Karte ${_gameState.discardPile?.value} auf Ablagestapel gelegt');
     notifyListeners();
   }
 
-  /// Gezogene Karte mit Spielerkarte tauschen
   void swapWithPlayerCard(int cardIndex) {
     if (_gameState.drawnCard == null ||
-        cardIndex >= GameConstants.maxCardsPerPlayer)
+        cardIndex >= GameConstants.maxCardsPerPlayer) {
       return;
+    }
 
     List<Player> updatedPlayers = List.from(_gameState.players);
-    Player humanPlayer = updatedPlayers[0]; // Erster Spieler ist immer human
+    Player humanPlayer = updatedPlayers[0];
 
-    if (cardIndex >= humanPlayer.cards.length) return;
+    if (cardIndex >= humanPlayer.cards.length) {
+      return;
+    }
 
     List<GameCard> updatedCards = List.from(humanPlayer.cards);
     GameCard oldCard = updatedCards[cardIndex];
 
-    // Neue Karte setzen (sichtbar machen)
-    updatedCards[cardIndex] = _gameState.drawnCard!.copyWith(isVisible: true);
+    updatedCards[cardIndex] = _gameState.drawnCard!.copyWith(isVisible: false);
 
     updatedPlayers[0] = humanPlayer.copyWith(cards: updatedCards);
 
@@ -224,14 +224,13 @@ class GameController extends ChangeNotifier {
       discardPile: oldCard.copyWith(isVisible: true),
       drawnCard: null,
       showDrawnCard: false,
-      hasDrawnCardThisTurn: false, // Zug beendet
+      hasDrawnCardThisTurn: false,
     );
 
     print(
       '🔄 Karte ${_gameState.drawnCard?.value} mit Spielerkarte ${oldCard.value} getauscht',
     );
 
-    // Prüfen ob es eine Aktionskarte war
     if (updatedCards[cardIndex].isActionCard) {
       _handleActionCard(updatedCards[cardIndex].value);
     }
@@ -239,9 +238,10 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// PAWSY rufen (Spiel beenden)
   void callPawsy() {
-    if (!_gameState.canCallPawsy) return;
+    if (!_gameState.canCallPawsy) {
+      return;
+    }
 
     _gameState = _gameState.copyWith(phase: GamePhase.gameOver);
 
@@ -250,24 +250,18 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Aktionskarten verarbeiten
   void _handleActionCard(int cardValue) {
     if (cardValue >= 6 && cardValue <= 7) {
       print('👁️ PEEK-Karte gespielt - schaue dir eine deiner Karten an!');
-      // TODO: UI für PEEK
     } else if (cardValue >= 8 && cardValue <= 9) {
       print('🕵️ SPY-Karte gespielt - schaue dir eine Gegnerkarte an!');
-      // TODO: UI für SPY
     } else if (cardValue >= 10 && cardValue <= 11) {
       print('🔄 SWAP-Karte gespielt - tausche Karten!');
-      // TODO: UI für SWAP
     } else if (cardValue == 12) {
       print('🃏 WILD-Karte gespielt - spezielle Aktion!');
-      // TODO: UI für WILD
     }
   }
 
-  /// Endpunkte berechnen
   void _calculateFinalScores() {
     for (int i = 0; i < _gameState.players.length; i++) {
       Player player = _gameState.players[i];
@@ -276,14 +270,17 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// Spieler-Karte sichtbar machen (für Peek-Aktionen)
   void revealPlayerCard(int playerIndex, int cardIndex) {
-    if (playerIndex >= _gameState.players.length) return;
+    if (playerIndex >= _gameState.players.length) {
+      return;
+    }
 
     List<Player> updatedPlayers = List.from(_gameState.players);
     Player player = updatedPlayers[playerIndex];
 
-    if (cardIndex >= player.cards.length) return;
+    if (cardIndex >= player.cards.length) {
+      return;
+    }
 
     List<GameCard> updatedCards = List.from(player.cards);
     updatedCards[cardIndex] = updatedCards[cardIndex].copyWith(isVisible: true);
@@ -294,9 +291,10 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Debug: Alle Human-Player Karten anzeigen
   void debugRevealHumanCards() {
-    if (_gameState.players.isEmpty) return;
+    if (_gameState.players.isEmpty) {
+      return;
+    }
 
     List<Player> updatedPlayers = List.from(_gameState.players);
     Player humanPlayer = updatedPlayers[0];
