@@ -2,12 +2,7 @@
 import 'player.dart';
 import 'card.dart';
 
-enum GamePhase {
-  dealing,
-  lookingAtCards, // Neue Phase: 2 Karten anschauen
-  playing,
-  gameOver,
-}
+enum GamePhase { dealing, lookingAtCards, playing, gameOver }
 
 class GameState {
   final List<Player> players;
@@ -18,10 +13,8 @@ class GameState {
   final int currentPlayerIndex;
   final bool showDrawnCard;
   final bool isDrawingFromDiscard;
-  final bool hasDrawnCardThisTurn; // Neue Regel: Hat Karte gezogen diese Runde
-  final int cardsLookedAt; // Anzahl angeschauter Karten beim Start
-
-  // Dealing Animation State
+  final bool hasDrawnCardThisTurn;
+  final int cardsLookedAt;
   final int currentDealingCard;
   final int dealingToPlayerIndex;
 
@@ -40,7 +33,6 @@ class GameState {
     this.dealingToPlayerIndex = 0,
   });
 
-  // Getter für einfachen Zugriff
   Player get currentPlayer => players[currentPlayerIndex];
 
   Player get humanPlayer => players.firstWhere((p) => p.isHuman);
@@ -59,8 +51,7 @@ class GameState {
 
   bool get canDrawCard => isPlaying && !showDrawnCard && !isDrawingFromDiscard;
 
-  bool get canCallPawsy =>
-      isPlaying && !hasDrawnCardThisTurn && humanPlayer.visibleCardsCount >= 2;
+  bool get canCallPawsy => isPlaying && !hasDrawnCardThisTurn;
 
   GameState copyWith({
     List<Player>? players,
