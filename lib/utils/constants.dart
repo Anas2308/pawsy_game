@@ -50,6 +50,16 @@ class GameConstants {
   static const Duration drawDuration = Duration(milliseconds: 300);
   static const Duration discardFlipDuration = Duration(milliseconds: 800);
   static const Duration betweenCardDelay = Duration(milliseconds: 200);
+  static const Duration actionCardRevealDuration = Duration(seconds: 2);
+
+  // Aktionskarten-Animationen
+  static const Duration highlightAnimationDuration = Duration(
+    milliseconds: 300,
+  );
+  static const Duration switchAnimationDuration = Duration(milliseconds: 2200);
+  static const double highlightOffset = 15.0;
+  static const double highlightScale = 1.05;
+  static const double switchScale = 1.1;
 }
 
 class GameStrings {
@@ -73,4 +83,21 @@ class GameStrings {
   static const String drawingFromDiscard = 'Ziehe Karte vom Ablagestapel...';
   static const String pawsyButton = 'PAWSY!';
   static const String pawsyDisabled = 'Ziehe keine Karte um PAWSY zu rufen!';
+
+  // Aktionskarten
+  static const String scoutAction = 'SCOUT: Erkunde eine eigene Karte';
+  static const String stalkAction = 'STALK: Verfolge eine Gegnerkarte';
+  static const String switchAction = 'SWITCH: Wechsle Karten mit Gegner';
+
+  static const String scoutSelectCard =
+      'SCOUT: Wähle eine deiner Karten zum Erkunden';
+  static const String stalkSelectPlayer = 'STALK: Wähle einen Gegner';
+  static const String stalkSelectCard = 'STALK: Wähle eine Karte des Gegners';
+  static const String switchSelectPlayer = 'SWITCH: Wähle einen Gegner';
+  static const String switchSelectOwnCard = 'SWITCH: Wähle eine deiner Karten';
+  static const String switchSelectOpponentCard =
+      'SWITCH: Wähle eine Gegnerkarte';
+
+  static const String actionCardActivated = 'Aktionskarte aktiviert!';
+  static const String actionCardCanceled = 'Aktion abgebrochen';
 }

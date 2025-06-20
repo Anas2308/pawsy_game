@@ -253,6 +253,46 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               GameStrings.drawingFromDiscard,
               style: TextStyle(color: Colors.orange, fontSize: 12),
             ),
+          // AKTIONSKARTEN INFO
+          if (gameState.isInActionPhase)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.purple, width: 2),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    gameState.discardPile?.actionName ?? '',
+                    style: const TextStyle(
+                      color: Colors.purple,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    gameState.actionPhaseDescription,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (gameState.actionPhase != ActionCardPhase.none)
+                    TextButton(
+                      onPressed: () =>
+                          context.read<GameController>().cancelActionCard(),
+                      child: const Text(
+                        'Abbrechen',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -281,6 +321,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             player: gameState.players[1],
             showDrawnCard: gameState.showDrawnCard,
             isLookingAtCards: gameState.isLookingAtCards,
+            actionPhase: gameState.actionPhase,
+            animationPhase: gameState.animationPhase,
+            selectedPlayerIndex: gameState.selectedPlayerIndex,
+            selectedCardIndex: gameState.selectedCardIndex,
+            revealedPlayerIndex: gameState.revealedPlayerIndex,
+            revealedCardIndex: gameState.revealedCardIndex,
+            highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+            highlightedCardIndex: gameState.highlightedCardIndex,
+            switchingCards: gameState.switchingCards,
+            onPlayerTap: (playerIndex) =>
+                _handlePlayerTap(gameController, playerIndex),
+            onCardTap: (cardIndex) =>
+                _handleOpponentCardTap(gameController, 1, cardIndex),
           ),
         const Spacer(),
         CenterStacks(
@@ -305,61 +358,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
             isLookingAtCards: gameState.isLookingAtCards,
-            onCardTap: (index) {
-              if (gameState.isLookingAtCards) {
-                gameController.lookAtStartCard(index);
-              } else {
-                gameController.swapWithPlayerCard(index);
-              }
-            },
+            actionPhase: gameState.actionPhase,
+            animationPhase: gameState.animationPhase,
+            selectedPlayerIndex: gameState.selectedPlayerIndex,
+            selectedCardIndex: gameState.selectedCardIndex,
+            revealedPlayerIndex: gameState.revealedPlayerIndex,
+            revealedCardIndex: gameState.revealedCardIndex,
+            highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+            highlightedCardIndex: gameState.highlightedCardIndex,
+            switchingCards: gameState.switchingCards,
+            onCardTap: (index) => _handleHumanCardTap(gameController, index),
           ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Phase: ${gameState.phase}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Can Call PAWSY: ${gameState.canCallPawsy}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed:
-                    (gameState.isPlaying &&
-                        gameState.isHumanTurn &&
-                        gameState.canCallPawsy)
-                    ? () => gameController.callPawsy()
-                    : null,
-                icon: const Icon(Icons.pets),
-                label: Text(GameStrings.pawsyButton),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      (gameState.isPlaying &&
-                          gameState.isHumanTurn &&
-                          gameState.canCallPawsy)
-                      ? Colors.orange[600]
-                      : Colors.grey,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 15,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        _buildControlsArea(gameState, gameController),
       ],
     );
   }
@@ -379,6 +389,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
                 isLookingAtCards: gameState.isLookingAtCards,
+                actionPhase: gameState.actionPhase,
+                animationPhase: gameState.animationPhase,
+                selectedPlayerIndex: gameState.selectedPlayerIndex,
+                selectedCardIndex: gameState.selectedCardIndex,
+                revealedPlayerIndex: gameState.revealedPlayerIndex,
+                revealedCardIndex: gameState.revealedCardIndex,
+                highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                highlightedCardIndex: gameState.highlightedCardIndex,
+                switchingCards: gameState.switchingCards,
+                onPlayerTap: (playerIndex) =>
+                    _handlePlayerTap(gameController, playerIndex),
+                onCardTap: (cardIndex) =>
+                    _handleOpponentCardTap(gameController, 1, cardIndex),
               ),
             if (gameState.players.length > 2)
               PlayerArea(
@@ -386,6 +409,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
                 isLookingAtCards: gameState.isLookingAtCards,
+                actionPhase: gameState.actionPhase,
+                animationPhase: gameState.animationPhase,
+                selectedPlayerIndex: gameState.selectedPlayerIndex,
+                selectedCardIndex: gameState.selectedCardIndex,
+                revealedPlayerIndex: gameState.revealedPlayerIndex,
+                revealedCardIndex: gameState.revealedCardIndex,
+                highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                highlightedCardIndex: gameState.highlightedCardIndex,
+                switchingCards: gameState.switchingCards,
+                onPlayerTap: (playerIndex) =>
+                    _handlePlayerTap(gameController, playerIndex),
+                onCardTap: (cardIndex) =>
+                    _handleOpponentCardTap(gameController, 2, cardIndex),
               ),
           ],
         ),
@@ -412,61 +448,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
             isLookingAtCards: gameState.isLookingAtCards,
-            onCardTap: (index) {
-              if (gameState.isLookingAtCards) {
-                gameController.lookAtStartCard(index);
-              } else {
-                gameController.swapWithPlayerCard(index);
-              }
-            },
+            actionPhase: gameState.actionPhase,
+            animationPhase: gameState.animationPhase,
+            selectedPlayerIndex: gameState.selectedPlayerIndex,
+            selectedCardIndex: gameState.selectedCardIndex,
+            revealedPlayerIndex: gameState.revealedPlayerIndex,
+            revealedCardIndex: gameState.revealedCardIndex,
+            highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+            highlightedCardIndex: gameState.highlightedCardIndex,
+            switchingCards: gameState.switchingCards,
+            onCardTap: (index) => _handleHumanCardTap(gameController, index),
           ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Phase: ${gameState.phase}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Can Call PAWSY: ${gameState.canCallPawsy}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed:
-                    (gameState.isPlaying &&
-                        gameState.isHumanTurn &&
-                        gameState.canCallPawsy)
-                    ? () => gameController.callPawsy()
-                    : null,
-                icon: const Icon(Icons.pets),
-                label: Text(GameStrings.pawsyButton),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      (gameState.isPlaying &&
-                          gameState.isHumanTurn &&
-                          gameState.canCallPawsy)
-                      ? Colors.orange[600]
-                      : Colors.grey,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 15,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        _buildControlsArea(gameState, gameController),
       ],
     );
   }
@@ -482,6 +475,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             player: gameState.players[2],
             showDrawnCard: gameState.showDrawnCard,
             isLookingAtCards: gameState.isLookingAtCards,
+            actionPhase: gameState.actionPhase,
+            animationPhase: gameState.animationPhase,
+            selectedPlayerIndex: gameState.selectedPlayerIndex,
+            selectedCardIndex: gameState.selectedCardIndex,
+            revealedPlayerIndex: gameState.revealedPlayerIndex,
+            revealedCardIndex: gameState.revealedCardIndex,
+            highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+            highlightedCardIndex: gameState.highlightedCardIndex,
+            switchingCards: gameState.switchingCards,
+            onPlayerTap: (playerIndex) =>
+                _handlePlayerTap(gameController, playerIndex),
+            onCardTap: (cardIndex) =>
+                _handleOpponentCardTap(gameController, 2, cardIndex),
           ),
         Expanded(
           child: Row(
@@ -494,6 +500,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
                     isLookingAtCards: gameState.isLookingAtCards,
+                    actionPhase: gameState.actionPhase,
+                    animationPhase: gameState.animationPhase,
+                    selectedPlayerIndex: gameState.selectedPlayerIndex,
+                    selectedCardIndex: gameState.selectedCardIndex,
+                    revealedPlayerIndex: gameState.revealedPlayerIndex,
+                    revealedCardIndex: gameState.revealedCardIndex,
+                    highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                    highlightedCardIndex: gameState.highlightedCardIndex,
+                    switchingCards: gameState.switchingCards,
+                    onPlayerTap: (playerIndex) =>
+                        _handlePlayerTap(gameController, playerIndex),
+                    onCardTap: (cardIndex) =>
+                        _handleOpponentCardTap(gameController, 1, cardIndex),
                   ),
                 ),
               Expanded(
@@ -522,6 +541,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
                     isLookingAtCards: gameState.isLookingAtCards,
+                    actionPhase: gameState.actionPhase,
+                    animationPhase: gameState.animationPhase,
+                    selectedPlayerIndex: gameState.selectedPlayerIndex,
+                    selectedCardIndex: gameState.selectedCardIndex,
+                    revealedPlayerIndex: gameState.revealedPlayerIndex,
+                    revealedCardIndex: gameState.revealedCardIndex,
+                    highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                    highlightedCardIndex: gameState.highlightedCardIndex,
+                    switchingCards: gameState.switchingCards,
+                    onPlayerTap: (playerIndex) =>
+                        _handlePlayerTap(gameController, playerIndex),
+                    onCardTap: (cardIndex) =>
+                        _handleOpponentCardTap(gameController, 3, cardIndex),
                   ),
                 ),
             ],
@@ -532,61 +564,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
             isLookingAtCards: gameState.isLookingAtCards,
-            onCardTap: (index) {
-              if (gameState.isLookingAtCards) {
-                gameController.lookAtStartCard(index);
-              } else {
-                gameController.swapWithPlayerCard(index);
-              }
-            },
+            actionPhase: gameState.actionPhase,
+            animationPhase: gameState.animationPhase,
+            selectedPlayerIndex: gameState.selectedPlayerIndex,
+            selectedCardIndex: gameState.selectedCardIndex,
+            revealedPlayerIndex: gameState.revealedPlayerIndex,
+            revealedCardIndex: gameState.revealedCardIndex,
+            highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+            highlightedCardIndex: gameState.highlightedCardIndex,
+            switchingCards: gameState.switchingCards,
+            onCardTap: (index) => _handleHumanCardTap(gameController, index),
           ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Phase: ${gameState.phase}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Can Call PAWSY: ${gameState.canCallPawsy}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed:
-                    (gameState.isPlaying &&
-                        gameState.isHumanTurn &&
-                        gameState.canCallPawsy)
-                    ? () => gameController.callPawsy()
-                    : null,
-                icon: const Icon(Icons.pets),
-                label: Text(GameStrings.pawsyButton),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      (gameState.isPlaying &&
-                          gameState.isHumanTurn &&
-                          gameState.canCallPawsy)
-                      ? Colors.orange[600]
-                      : Colors.grey,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 15,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        _buildControlsArea(gameState, gameController),
       ],
     );
   }
@@ -606,6 +595,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
                 isLookingAtCards: gameState.isLookingAtCards,
+                actionPhase: gameState.actionPhase,
+                animationPhase: gameState.animationPhase,
+                selectedPlayerIndex: gameState.selectedPlayerIndex,
+                selectedCardIndex: gameState.selectedCardIndex,
+                revealedPlayerIndex: gameState.revealedPlayerIndex,
+                revealedCardIndex: gameState.revealedCardIndex,
+                highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                highlightedCardIndex: gameState.highlightedCardIndex,
+                switchingCards: gameState.switchingCards,
+                onPlayerTap: (playerIndex) =>
+                    _handlePlayerTap(gameController, playerIndex),
+                onCardTap: (cardIndex) =>
+                    _handleOpponentCardTap(gameController, 2, cardIndex),
               ),
             if (gameState.players.length > 3)
               PlayerArea(
@@ -613,6 +615,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 isCompact: true,
                 showDrawnCard: gameState.showDrawnCard,
                 isLookingAtCards: gameState.isLookingAtCards,
+                actionPhase: gameState.actionPhase,
+                animationPhase: gameState.animationPhase,
+                selectedPlayerIndex: gameState.selectedPlayerIndex,
+                selectedCardIndex: gameState.selectedCardIndex,
+                revealedPlayerIndex: gameState.revealedPlayerIndex,
+                revealedCardIndex: gameState.revealedCardIndex,
+                highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                highlightedCardIndex: gameState.highlightedCardIndex,
+                switchingCards: gameState.switchingCards,
+                onPlayerTap: (playerIndex) =>
+                    _handlePlayerTap(gameController, playerIndex),
+                onCardTap: (cardIndex) =>
+                    _handleOpponentCardTap(gameController, 3, cardIndex),
               ),
           ],
         ),
@@ -627,6 +642,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
                     isLookingAtCards: gameState.isLookingAtCards,
+                    actionPhase: gameState.actionPhase,
+                    animationPhase: gameState.animationPhase,
+                    selectedPlayerIndex: gameState.selectedPlayerIndex,
+                    selectedCardIndex: gameState.selectedCardIndex,
+                    revealedPlayerIndex: gameState.revealedPlayerIndex,
+                    revealedCardIndex: gameState.revealedCardIndex,
+                    highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                    highlightedCardIndex: gameState.highlightedCardIndex,
+                    switchingCards: gameState.switchingCards,
+                    onPlayerTap: (playerIndex) =>
+                        _handlePlayerTap(gameController, playerIndex),
+                    onCardTap: (cardIndex) =>
+                        _handleOpponentCardTap(gameController, 1, cardIndex),
                   ),
                 ),
               Expanded(
@@ -655,6 +683,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     isCompact: true,
                     showDrawnCard: gameState.showDrawnCard,
                     isLookingAtCards: gameState.isLookingAtCards,
+                    actionPhase: gameState.actionPhase,
+                    animationPhase: gameState.animationPhase,
+                    selectedPlayerIndex: gameState.selectedPlayerIndex,
+                    selectedCardIndex: gameState.selectedCardIndex,
+                    revealedPlayerIndex: gameState.revealedPlayerIndex,
+                    revealedCardIndex: gameState.revealedCardIndex,
+                    highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+                    highlightedCardIndex: gameState.highlightedCardIndex,
+                    switchingCards: gameState.switchingCards,
+                    onPlayerTap: (playerIndex) =>
+                        _handlePlayerTap(gameController, playerIndex),
+                    onCardTap: (cardIndex) =>
+                        _handleOpponentCardTap(gameController, 4, cardIndex),
                   ),
                 ),
             ],
@@ -665,63 +706,134 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             player: gameState.players[0],
             showDrawnCard: gameState.showDrawnCard,
             isLookingAtCards: gameState.isLookingAtCards,
-            onCardTap: (index) {
-              if (gameState.isLookingAtCards) {
-                gameController.lookAtStartCard(index);
-              } else {
-                gameController.swapWithPlayerCard(index);
-              }
-            },
+            actionPhase: gameState.actionPhase,
+            animationPhase: gameState.animationPhase,
+            selectedPlayerIndex: gameState.selectedPlayerIndex,
+            selectedCardIndex: gameState.selectedCardIndex,
+            revealedPlayerIndex: gameState.revealedPlayerIndex,
+            revealedCardIndex: gameState.revealedCardIndex,
+            highlightedPlayerIndex: gameState.highlightedPlayerIndex,
+            highlightedCardIndex: gameState.highlightedCardIndex,
+            switchingCards: gameState.switchingCards,
+            onCardTap: (index) => _handleHumanCardTap(gameController, index),
           ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Phase: ${gameState.phase}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Can Call PAWSY: ${gameState.canCallPawsy}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed:
-                    (gameState.isPlaying &&
-                        gameState.isHumanTurn &&
-                        gameState.canCallPawsy)
-                    ? () => gameController.callPawsy()
-                    : null,
-                icon: const Icon(Icons.pets),
-                label: Text(GameStrings.pawsyButton),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      (gameState.isPlaying &&
-                          gameState.isHumanTurn &&
-                          gameState.canCallPawsy)
-                      ? Colors.orange[600]
-                      : Colors.grey,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 15,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        _buildControlsArea(gameState, gameController),
       ],
     );
+  }
+
+  Widget _buildControlsArea(
+    GameState gameState,
+    GameController gameController,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Debug Info
+          Text(
+            'Phase: ${gameState.phase}',
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          Text(
+            'Current Player: ${gameState.currentPlayer.name} (Human: ${gameState.currentPlayer.isHuman})',
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          Text(
+            'Has Drawn: ${gameState.hasDrawnCardThisTurn}',
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          Text(
+            'Can Call PAWSY: ${gameState.canCallPawsy}',
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          if (gameState.isInActionPhase)
+            Text(
+              'Action Phase: ${gameState.actionPhase}',
+              style: const TextStyle(color: Colors.purple, fontSize: 12),
+            ),
+          if (gameState.isAnimating)
+            Text(
+              'Animation: ${gameState.animationPhase}',
+              style: const TextStyle(color: Colors.yellow, fontSize: 12),
+            ),
+          const SizedBox(height: 8),
+
+          // PAWSY Button
+          ElevatedButton.icon(
+            onPressed:
+                (gameState.isPlaying &&
+                    gameState.isHumanTurn &&
+                    gameState.canCallPawsy)
+                ? () => gameController.callPawsy()
+                : null,
+            icon: const Icon(Icons.pets),
+            label: Text(GameStrings.pawsyButton),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  (gameState.isPlaying &&
+                      gameState.isHumanTurn &&
+                      gameState.canCallPawsy)
+                  ? Colors.orange[600]
+                  : Colors.grey,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // AKTIONSKARTEN INTERAKTION HANDLER
+  void _handleHumanCardTap(GameController gameController, int cardIndex) {
+    final gameState = gameController.gameState;
+
+    // Früher Exit wenn nicht Human Turn
+    if (!gameState.isHumanTurn) return;
+
+    if (gameState.isLookingAtCards) {
+      gameController.lookAtStartCard(cardIndex);
+    } else if (gameState.showDrawnCard) {
+      gameController.swapWithPlayerCard(cardIndex);
+    } else if (gameState.actionPhase == ActionCardPhase.scoutSelectCard) {
+      gameController.selectCardForScout(cardIndex);
+    } else if (gameState.actionPhase == ActionCardPhase.switchSelectOwnCard) {
+      gameController.selectOwnCardForSwitch(cardIndex);
+    }
+  }
+
+  void _handlePlayerTap(GameController gameController, int playerIndex) {
+    final gameState = gameController.gameState;
+
+    // Früher Exit wenn nicht Human Turn
+    if (!gameState.isHumanTurn) return;
+
+    if (gameState.actionPhase == ActionCardPhase.stalkSelectPlayer) {
+      gameController.selectPlayerForStalk(playerIndex);
+    } else if (gameState.actionPhase == ActionCardPhase.switchSelectPlayer) {
+      gameController.selectPlayerForSwitch(playerIndex);
+    }
+  }
+
+  void _handleOpponentCardTap(
+    GameController gameController,
+    int playerIndex,
+    int cardIndex,
+  ) {
+    final gameState = gameController.gameState;
+
+    // Früher Exit wenn nicht Human Turn
+    if (!gameState.isHumanTurn) return;
+
+    if (gameState.actionPhase == ActionCardPhase.stalkSelectCard &&
+        gameState.selectedPlayerIndex == playerIndex) {
+      gameController.selectCardForStalk(cardIndex);
+    } else if (gameState.actionPhase ==
+            ActionCardPhase.switchSelectOpponentCard &&
+        gameState.selectedPlayerIndex == playerIndex) {
+      gameController.selectOpponentCardForSwitch(cardIndex);
+    }
   }
 
   Widget _buildAnimations(GameState gameState) {
@@ -853,13 +965,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       ],
                     ),
                     child: Center(
-                      child: Text(
-                        '${gameState.drawnCard!.value}',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${gameState.drawnCard!.value}',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (gameState.drawnCard!.isActionCard)
+                            Text(
+                              gameState.drawnCard!.actionName,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

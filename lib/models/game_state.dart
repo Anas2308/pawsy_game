@@ -4,6 +4,18 @@ import 'card.dart';
 
 enum GamePhase { dealing, lookingAtCards, playing, gameOver }
 
+enum ActionCardPhase {
+  none,
+  scoutSelectCard,
+  stalkSelectPlayer,
+  stalkSelectCard,
+  switchSelectPlayer,
+  switchSelectOwnCard,
+  switchSelectOpponentCard,
+}
+
+enum AnimationPhase { none, highlighting, switching }
+
 class GameState {
   final List<Player> players;
   final List<int> deck;
@@ -18,6 +30,24 @@ class GameState {
   final int currentDealingCard;
   final int dealingToPlayerIndex;
 
+  // Aktionskarten-Status
+  final ActionCardPhase actionPhase;
+  final int? activeActionCard;
+  final bool canActivateAction;
+  final int? selectedPlayerIndex;
+  final int? selectedCardIndex;
+
+  // Temporäre Karten-Aufdeckung (playerIndex, cardIndex)
+  final int? revealedPlayerIndex;
+  final int? revealedCardIndex;
+
+  // Animation States
+  final AnimationPhase animationPhase;
+  final int? highlightedPlayerIndex;
+  final int? highlightedCardIndex;
+  final List<(int, int)> switchingCards; // (playerIndex, cardIndex) pairs
+  final bool isAnimating;
+
   const GameState({
     required this.players,
     required this.deck,
@@ -31,6 +61,18 @@ class GameState {
     this.cardsLookedAt = 0,
     this.currentDealingCard = 0,
     this.dealingToPlayerIndex = 0,
+    this.actionPhase = ActionCardPhase.none,
+    this.activeActionCard,
+    this.canActivateAction = false,
+    this.selectedPlayerIndex,
+    this.selectedCardIndex,
+    this.revealedPlayerIndex,
+    this.revealedCardIndex,
+    this.animationPhase = AnimationPhase.none,
+    this.highlightedPlayerIndex,
+    this.highlightedCardIndex,
+    this.switchingCards = const [],
+    this.isAnimating = false,
   });
 
   Player get currentPlayer => players[currentPlayerIndex];
@@ -49,9 +91,35 @@ class GameState {
 
   int get playerCount => players.length;
 
-  bool get canDrawCard => isPlaying && !showDrawnCard && !isDrawingFromDiscard;
+  bool get canDrawCard =>
+      isPlaying &&
+      !showDrawnCard &&
+      !isDrawingFromDiscard &&
+      actionPhase == ActionCardPhase.none;
 
-  bool get canCallPawsy => isPlaying && !hasDrawnCardThisTurn;
+  bool get canCallPawsy =>
+      isPlaying && !hasDrawnCardThisTurn && actionPhase == ActionCardPhase.none;
+
+  bool get isInActionPhase => actionPhase != ActionCardPhase.none;
+
+  String get actionPhaseDescription {
+    switch (actionPhase) {
+      case ActionCardPhase.scoutSelectCard:
+        return "SCOUT: Wähle eine deiner Karten zum Erkunden";
+      case ActionCardPhase.stalkSelectPlayer:
+        return "STALK: Wähle einen Gegner";
+      case ActionCardPhase.stalkSelectCard:
+        return "STALK: Wähle eine Karte des Gegners";
+      case ActionCardPhase.switchSelectPlayer:
+        return "SWITCH: Wähle einen Gegner";
+      case ActionCardPhase.switchSelectOwnCard:
+        return "SWITCH: Wähle eine deiner Karten";
+      case ActionCardPhase.switchSelectOpponentCard:
+        return "SWITCH: Wähle eine Gegnerkarte";
+      default:
+        return "";
+    }
+  }
 
   GameState copyWith({
     List<Player>? players,
@@ -66,6 +134,18 @@ class GameState {
     int? cardsLookedAt,
     int? currentDealingCard,
     int? dealingToPlayerIndex,
+    ActionCardPhase? actionPhase,
+    int? activeActionCard,
+    bool? canActivateAction,
+    int? selectedPlayerIndex,
+    int? selectedCardIndex,
+    int? revealedPlayerIndex,
+    int? revealedCardIndex,
+    AnimationPhase? animationPhase,
+    int? highlightedPlayerIndex,
+    int? highlightedCardIndex,
+    List<(int, int)>? switchingCards,
+    bool? isAnimating,
   }) {
     return GameState(
       players: players ?? this.players,
@@ -80,6 +160,19 @@ class GameState {
       cardsLookedAt: cardsLookedAt ?? this.cardsLookedAt,
       currentDealingCard: currentDealingCard ?? this.currentDealingCard,
       dealingToPlayerIndex: dealingToPlayerIndex ?? this.dealingToPlayerIndex,
+      actionPhase: actionPhase ?? this.actionPhase,
+      activeActionCard: activeActionCard ?? this.activeActionCard,
+      canActivateAction: canActivateAction ?? this.canActivateAction,
+      selectedPlayerIndex: selectedPlayerIndex ?? this.selectedPlayerIndex,
+      selectedCardIndex: selectedCardIndex ?? this.selectedCardIndex,
+      revealedPlayerIndex: revealedPlayerIndex ?? this.revealedPlayerIndex,
+      revealedCardIndex: revealedCardIndex ?? this.revealedCardIndex,
+      animationPhase: animationPhase ?? this.animationPhase,
+      highlightedPlayerIndex:
+          highlightedPlayerIndex ?? this.highlightedPlayerIndex,
+      highlightedCardIndex: highlightedCardIndex ?? this.highlightedCardIndex,
+      switchingCards: switchingCards ?? this.switchingCards,
+      isAnimating: isAnimating ?? this.isAnimating,
     );
   }
 }
