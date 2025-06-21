@@ -1,16 +1,24 @@
-// lib/controllers/game_controller.dart - BUGFIX für Kartensichtbarkeit
+// lib/controllers/game_controller.dart - REFACTORED VERSION
 import 'package:flutter/foundation.dart';
 import '../models/game_state.dart';
 import '../models/player.dart';
 import '../models/card.dart';
 import '../utils/constants.dart';
-import 'deck_controller.dart';
-import 'ai_controller.dart';
+import '../services/card_service.dart';
+import '../services/turn_service.dart';
+import '../services/animation_service.dart';
+import '../controllers/action_controller.dart';
+import '../controllers/deck_controller.dart';
+import '../controllers/ai_controller.dart';
 
 class GameController extends ChangeNotifier {
   GameState _gameState = const GameState(players: [], deck: []);
 
   GameState get gameState => _gameState;
+
+  // =============================================================================
+  // GAME INITIALIZATION
+  // =============================================================================
 
   void startNewGame(int playerCount) {
     List<int> deck = DeckController.createCaboDeck();
@@ -27,126 +35,240 @@ class GameController extends ChangeNotifier {
       );
     }
 
-    _gameState = GameState(
-      players: players,
-      deck: deck,
-      phase: GamePhase.dealing,
-      currentPlayerIndex: 0,
-      currentDealingCard: 0,
-      dealingToPlayerIndex: 0,
-    );
+    _gameState = TurnService.initializeNewGame(players, deck);
 
     print('🎮 Neues Spiel gestartet mit $playerCount Spielern');
     notifyListeners();
   }
 
+  // =============================================================================
+  // DEALING PHASE
+  // =============================================================================
+
   void dealNextCard() {
     if (_gameState.currentDealingCard >=
         _gameState.playerCount * GameConstants.maxCardsPerPlayer) {
-      int? discardCard = DeckController.drawCard(_gameState.deck);
-      if (discardCard != null) {
-        _gameState = _gameState.copyWith(
-          phase: GamePhase.lookingAtCards,
-          discardPile: GameCard(value: discardCard, isVisible: true),
-        );
-        print('✅ Alle Karten ausgeteilt! Ablagestapel: $discardCard');
-        print('👀 Schaue dir 2 deiner Karten an!');
-      }
+      _finishDealing();
     } else {
-      int? card = DeckController.drawCard(_gameState.deck);
-      if (card != null) {
-        List<Player> updatedPlayers = List.from(_gameState.players);
-        Player currentPlayer = updatedPlayers[_gameState.dealingToPlayerIndex];
-
-        List<GameCard> updatedCards = List.from(currentPlayer.cards);
-        updatedCards.add(GameCard(value: card, isVisible: false));
-
-        updatedPlayers[_gameState.dealingToPlayerIndex] = currentPlayer
-            .copyWith(cards: updatedCards);
-
-        _gameState = _gameState.copyWith(
-          players: updatedPlayers,
-          currentDealingCard: _gameState.currentDealingCard + 1,
-          dealingToPlayerIndex:
-              (_gameState.dealingToPlayerIndex + 1) % _gameState.playerCount,
-        );
-      }
+      _dealSingleCard();
     }
-
     notifyListeners();
   }
 
+  void _finishDealing() {
+    int? discardCard = DeckController.drawCard(_gameState.deck);
+    if (discardCard != null) {
+      _gameState = _gameState.copyWith(
+        phase: GamePhase.lookingAtCards,
+        discardPile: GameCard(value: discardCard, isVisible: true),
+      );
+      print('✅ Alle Karten ausgeteilt! Ablagestapel: $discardCard');
+    }
+  }
+
+  void _dealSingleCard() {
+    int? card = DeckController.drawCard(_gameState.deck);
+    if (card != null) {
+      List<Player> updatedPlayers = List.from(_gameState.players);
+      Player currentPlayer = updatedPlayers[_gameState.dealingToPlayerIndex];
+
+      List<GameCard> updatedCards = List.from(currentPlayer.cards);
+      updatedCards.add(GameCard(value: card, isVisible: false));
+
+      updatedPlayers[_gameState.dealingToPlayerIndex] = currentPlayer.copyWith(
+        cards: updatedCards,
+      );
+
+      _gameState = _gameState.copyWith(
+        players: updatedPlayers,
+        currentDealingCard: _gameState.currentDealingCard + 1,
+        dealingToPlayerIndex:
+            (_gameState.dealingToPlayerIndex + 1) % _gameState.playerCount,
+      );
+    }
+  }
+
+  // =============================================================================
+  // LOOKING AT CARDS PHASE
+  // =============================================================================
+
   void lookAtStartCard(int cardIndex) {
-    if (!_gameState.isLookingAtCards ||
-        _gameState.cardsLookedAt >= 2 ||
-        !_gameState.isHumanTurn) {
-      return;
-    }
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player humanPlayer = updatedPlayers[0];
-
-    if (cardIndex >= humanPlayer.cards.length) {
-      return;
-    }
-
-    List<GameCard> updatedCards = List.from(humanPlayer.cards);
-    updatedCards[cardIndex] = updatedCards[cardIndex].copyWith(isVisible: true);
-
-    updatedPlayers[0] = humanPlayer.copyWith(cards: updatedCards);
-
-    _gameState = _gameState.copyWith(
-      players: updatedPlayers,
-      cardsLookedAt: _gameState.cardsLookedAt + 1,
-    );
-
-    print(
-      '👀 Karte ${cardIndex + 1} angeschaut: ${updatedCards[cardIndex].value}',
-    );
+    _gameState = CardService.lookAtStartCard(_gameState, cardIndex);
 
     if (_gameState.cardsLookedAt >= 2) {
       Future.delayed(const Duration(seconds: 2), () {
         _startPlayingPhase();
       });
     }
-
     notifyListeners();
-  }
-
-  void _hideAllPlayerCards() {
-    List<Player> updatedPlayers = List.from(_gameState.players);
-
-    for (int i = 0; i < updatedPlayers.length; i++) {
-      Player player = updatedPlayers[i];
-      List<GameCard> updatedCards = player.cards
-          .map((card) => card.copyWith(isVisible: false))
-          .toList();
-      updatedPlayers[i] = player.copyWith(cards: updatedCards);
-    }
-
-    _gameState = _gameState.copyWith(players: updatedPlayers);
   }
 
   void _startPlayingPhase() {
-    _hideAllPlayerCards();
+    _gameState = CardService.hideAllPlayerCards(_gameState);
+    _gameState = TurnService.startPlayingPhase(_gameState);
 
-    _gameState = _gameState.copyWith(
-      phase: GamePhase.playing,
-      hasDrawnCardThisTurn: false,
+    print(
+      '🎮 Spielphase gestartet! ${_gameState.currentPlayer.name} ist dran.',
     );
-
-    print('🎮 Spielphase gestartet! Du bist dran.');
     notifyListeners();
 
     if (!_gameState.currentPlayer.isHuman) {
-      _startAITurn();
+      _handleAITurn();
     }
   }
 
-  void _startAITurn() {
-    if (_gameState.currentPlayer.isHuman || _gameState.hasDrawnCardThisTurn)
-      return;
+  // =============================================================================
+  // HUMAN PLAYER ACTIONS
+  // =============================================================================
 
+  void drawCardFromDeck() {
+    _gameState = CardService.drawCardFromDeck(_gameState);
+    print('🎴 Karte vom Deck gezogen: ${_gameState.drawnCard?.value}');
+    notifyListeners();
+  }
+
+  void drawCardFromDiscard() {
+    _gameState = CardService.drawCardFromDiscard(_gameState);
+    print('🎴 Karte vom Ablagestapel gezogen: ${_gameState.drawnCard?.value}');
+    notifyListeners();
+  }
+
+  void finishDrawingFromDiscard() {
+    _gameState = CardService.finishDrawingFromDiscard(_gameState);
+    notifyListeners();
+  }
+
+  void swapWithPlayerCard(int cardIndex) {
+    GameCard? drawnCard = _gameState.drawnCard;
+    _gameState = CardService.swapWithPlayerCard(_gameState, cardIndex);
+
+    if (drawnCard?.isActionCard == true) {
+      _handleActionCard(
+        drawnCard!.value,
+        false,
+      ); // Nicht aktivierbar wenn getauscht
+    } else {
+      _nextPlayerTurn();
+    }
+
+    print('🔄 Karte ${drawnCard?.value} mit Spielerkarte getauscht');
+    notifyListeners();
+  }
+
+  void discardDrawnCard() {
+    GameCard? drawnCard = _gameState.drawnCard;
+    bool wasDrawnFromDeck = !_gameState.isDrawingFromDiscard;
+
+    _gameState = CardService.discardDrawnCard(_gameState);
+
+    if (drawnCard?.isActionCard == true && wasDrawnFromDeck) {
+      _handleActionCard(
+        drawnCard!.value,
+        true,
+      ); // Aktivierbar wenn direkt abgelegt
+    } else {
+      _nextPlayerTurn();
+    }
+
+    print('🗂️ Karte ${drawnCard?.value} auf Ablagestapel gelegt');
+    notifyListeners();
+  }
+
+  void callPawsy() {
+    _gameState = TurnService.callPawsy(_gameState);
+    print('🐾 PAWSY gerufen! Spiel beendet.');
+    _calculateFinalScores();
+    notifyListeners();
+  }
+
+  // =============================================================================
+  // ACTION CARDS - Delegiert an ActionController
+  // =============================================================================
+
+  void _handleActionCard(int cardValue, bool canActivate) {
+    if (canActivate && _gameState.currentPlayer.isHuman) {
+      _gameState = ActionController.startActionCard(_gameState, cardValue);
+      print('🎯 Aktionskarte ${cardValue} aktiviert');
+    } else {
+      _nextPlayerTurn();
+    }
+    notifyListeners();
+  }
+
+  void selectCardForScout(int cardIndex) {
+    _gameState = ActionController.selectCardForScout(_gameState, cardIndex);
+
+    Future.delayed(const Duration(seconds: 2), () {
+      _gameState = ActionController.finishScoutAction(_gameState);
+      _nextPlayerTurn();
+      notifyListeners();
+    });
+
+    print('🔍 SCOUT: Karte ${cardIndex + 1} erkundet');
+    notifyListeners();
+  }
+
+  void selectPlayerForStalk(int playerIndex) {
+    _gameState = ActionController.selectPlayerForStalk(_gameState, playerIndex);
+    print('👁️ STALK: Spieler ${_gameState.players[playerIndex].name} gewählt');
+    notifyListeners();
+  }
+
+  void selectCardForStalk(int cardIndex) {
+    _gameState = ActionController.selectCardForStalk(_gameState, cardIndex);
+
+    Future.delayed(const Duration(seconds: 2), () {
+      _gameState = ActionController.finishStalkAction(_gameState);
+      _nextPlayerTurn();
+      notifyListeners();
+    });
+
+    print('👁️ STALK: Karte ${cardIndex + 1} verfolgt');
+    notifyListeners();
+  }
+
+  void selectPlayerForSwitch(int playerIndex) {
+    _gameState = ActionController.selectPlayerForSwitch(
+      _gameState,
+      playerIndex,
+    );
+    print('🔄 SWITCH: Spieler ${_gameState.players[playerIndex].name} gewählt');
+    notifyListeners();
+  }
+
+  void selectOwnCardForSwitch(int cardIndex) {
+    _gameState = ActionController.selectOwnCardForSwitch(_gameState, cardIndex);
+    print('🔄 SWITCH: Eigene Karte ${cardIndex + 1} gewählt');
+    notifyListeners();
+  }
+
+  void selectOpponentCardForSwitch(int cardIndex) {
+    _gameState = ActionController.selectOpponentCardForSwitch(
+      _gameState,
+      cardIndex,
+    );
+
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      _gameState = ActionController.finishSwitchAction(_gameState, cardIndex);
+      _nextPlayerTurn();
+      notifyListeners();
+    });
+
+    print('🔄 SWITCH: Animation gestartet');
+    notifyListeners();
+  }
+
+  void cancelActionCard() {
+    _gameState = ActionController.cancelActionCard(_gameState);
+    _nextPlayerTurn();
+    notifyListeners();
+  }
+
+  // =============================================================================
+  // AI PLAYER ACTIONS
+  // =============================================================================
+
+  void _handleAITurn() {
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!_gameState.isPlaying || _gameState.hasDrawnCardThisTurn) return;
 
@@ -158,64 +280,37 @@ class GameController extends ChangeNotifier {
   void _executeAIDecision(AIDecision decision) {
     switch (decision.action) {
       case AIAction.callPawsy:
-        print('🤖 ${_gameState.currentPlayer.name} ruft PAWSY!');
         callPawsy();
         break;
-
       case AIAction.drawFromDeck:
-        print('🤖 ${_gameState.currentPlayer.name} zieht vom Deck');
         _aiDrawFromDeck();
         break;
-
       case AIAction.drawFromDiscard:
-        print('🤖 ${_gameState.currentPlayer.name} zieht vom Ablagestapel');
         _aiDrawFromDiscard();
         break;
-
       default:
-        print('🤖 ${_gameState.currentPlayer.name} macht nichts');
+        _nextPlayerTurn();
         break;
     }
   }
 
   void _aiDrawFromDeck() {
-    if (!_gameState.canDrawCard || _gameState.hasDrawnCardThisTurn) return;
-
-    int? card = DeckController.drawCard(_gameState.deck);
-    if (card != null) {
-      _gameState = _gameState.copyWith(
-        drawnCard: GameCard(value: card, isVisible: true),
-        hasDrawnCardThisTurn: true,
-      );
-
-      print('🤖 KI zog Karte: $card');
-
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        _handleAIDrawnCard();
-      });
-
-      notifyListeners();
-    }
-  }
-
-  void _aiDrawFromDiscard() {
-    if (_gameState.discardPile == null || _gameState.hasDrawnCardThisTurn)
-      return;
-
-    _gameState = _gameState.copyWith(
-      drawnCard: GameCard(
-        value: _gameState.discardPile!.value,
-        isVisible: true,
-      ),
-      hasDrawnCardThisTurn: true,
-    );
-
-    print('🤖 KI zog vom Ablagestapel: ${_gameState.discardPile!.value}');
+    _gameState = CardService.aiDrawFromDeck(_gameState);
+    print('🤖 KI zog vom Deck: ${_gameState.drawnCard?.value}');
 
     Future.delayed(const Duration(milliseconds: 1000), () {
       _handleAIDrawnCard();
     });
+    notifyListeners();
+  }
 
+  void _aiDrawFromDiscard() {
+    _gameState = CardService.aiDrawFromDiscard(_gameState);
+    print('🤖 KI zog vom Ablagestapel: ${_gameState.drawnCard?.value}');
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      _handleAIDrawnCard();
+    });
     notifyListeners();
   }
 
@@ -224,569 +319,48 @@ class GameController extends ChangeNotifier {
 
     switch (decision.action) {
       case AIAction.swapCard:
-        print('🤖 KI tauscht Karte ${decision.cardIndex! + 1}');
-        _aiSwapCard(decision.cardIndex!);
+        _gameState = CardService.aiSwapCard(_gameState, decision.cardIndex!);
+        print('🤖 KI tauschte Karte ${decision.cardIndex! + 1}');
         break;
-
       case AIAction.discardCard:
-        print('🤖 KI legt Karte ab');
-        _aiDiscardCard();
+        _gameState = CardService.aiDiscardCard(_gameState);
+        print('🤖 KI legte Karte ab');
         break;
-
       default:
-        _aiDiscardCard();
+        _gameState = CardService.aiDiscardCard(_gameState);
         break;
-    }
-  }
-
-  void _aiSwapCard(int cardIndex) {
-    if (_gameState.drawnCard == null ||
-        cardIndex >= GameConstants.maxCardsPerPlayer) {
-      return;
-    }
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player aiPlayer = updatedPlayers[_gameState.currentPlayerIndex];
-
-    if (cardIndex >= aiPlayer.cards.length) {
-      return;
-    }
-
-    List<GameCard> updatedCards = List.from(aiPlayer.cards);
-    GameCard oldCard = updatedCards[cardIndex];
-
-    updatedCards[cardIndex] = _gameState.drawnCard!.copyWith(isVisible: false);
-
-    updatedPlayers[_gameState.currentPlayerIndex] = aiPlayer.copyWith(
-      cards: updatedCards,
-    );
-
-    _gameState = _gameState.copyWith(
-      players: updatedPlayers,
-      discardPile: oldCard.copyWith(isVisible: true),
-      drawnCard: null,
-      hasDrawnCardThisTurn: false,
-    );
-
-    // WICHTIG: Prüfe Aktionskarte nur wenn vom Deck gezogen
-    if (updatedCards[cardIndex].isActionCard) {
-      _handleActionCard(
-        updatedCards[cardIndex].value,
-        false,
-      ); // KI = nicht aktivierbar
     }
 
     _nextPlayerTurn();
     notifyListeners();
   }
 
-  void _aiDiscardCard() {
-    if (_gameState.drawnCard == null) {
-      return;
-    }
-
-    bool wasDrawnFromDeck =
-        !_gameState.isDrawingFromDiscard; // Vereinfacht für KI
-
-    _gameState = _gameState.copyWith(
-      discardPile: _gameState.drawnCard,
-      drawnCard: null,
-      hasDrawnCardThisTurn: false,
-    );
-
-    print('🤖 KI legte ${_gameState.discardPile?.value} ab');
-
-    // WICHTIG: Aktionskarte nur aktivierbar wenn direkt vom Deck abgelegt
-    if (_gameState.discardPile!.isActionCard && wasDrawnFromDeck) {
-      _handleActionCard(
-        _gameState.discardPile!.value,
-        false,
-      ); // KI = nicht aktivierbar
-    } else {
-      _nextPlayerTurn();
-    }
-
-    notifyListeners();
-  }
+  // =============================================================================
+  // TURN MANAGEMENT
+  // =============================================================================
 
   void _nextPlayerTurn() {
-    int nextPlayerIndex =
-        (_gameState.currentPlayerIndex + 1) % _gameState.playerCount;
-
-    _gameState = _gameState.copyWith(
-      currentPlayerIndex: nextPlayerIndex,
-      hasDrawnCardThisTurn: false,
-    );
-
+    _gameState = TurnService.nextPlayerTurn(_gameState);
     print('🔄 ${_gameState.currentPlayer.name} ist dran');
 
     if (!_gameState.currentPlayer.isHuman) {
-      _startAITurn();
+      _handleAITurn();
     }
   }
 
-  // HUMAN PLAYER METHODEN
-  void drawCardFromDeck() {
-    if (!_gameState.canDrawCard || !_gameState.isHumanTurn) {
-      return;
-    }
-
-    int? card = DeckController.drawCard(_gameState.deck);
-    if (card != null) {
-      _gameState = _gameState.copyWith(
-        drawnCard: GameCard(value: card, isVisible: true),
-        showDrawnCard: true,
-        hasDrawnCardThisTurn: true,
-      );
-
-      print('🎴 Karte vom Deck gezogen: $card');
-      notifyListeners();
-    }
-  }
-
-  void drawCardFromDiscard() {
-    if (_gameState.showDrawnCard ||
-        _gameState.isDrawingFromDiscard ||
-        _gameState.discardPile == null ||
-        !_gameState.isHumanTurn) {
-      return;
-    }
-
-    _gameState = _gameState.copyWith(
-      drawnCard: GameCard(
-        value: _gameState.discardPile!.value,
-        isVisible: true,
-      ),
-      isDrawingFromDiscard: true,
-      hasDrawnCardThisTurn: true,
-    );
-
-    print(
-      '🎴 Karte vom Ablagestapel gezogen: ${_gameState.discardPile!.value}',
-    );
-    notifyListeners();
-  }
-
-  void finishDrawingFromDiscard() {
-    _gameState = _gameState.copyWith(
-      showDrawnCard: true,
-      isDrawingFromDiscard: false,
-    );
-    notifyListeners();
-  }
-
-  void discardDrawnCard() {
-    if (_gameState.drawnCard == null || !_gameState.isHumanTurn) {
-      return;
-    }
-
-    bool wasDrawnFromDeck = !_gameState.isDrawingFromDiscard;
-
-    _gameState = _gameState.copyWith(
-      discardPile: _gameState.drawnCard,
-      drawnCard: null,
-      showDrawnCard: false,
-      hasDrawnCardThisTurn: false,
-      canActivateAction: wasDrawnFromDeck && _gameState.drawnCard!.isActionCard,
-    );
-
-    print('🗂️ Karte ${_gameState.discardPile?.value} auf Ablagestapel gelegt');
-
-    // WICHTIG: Aktionskarte nur aktivierbar wenn direkt vom Deck abgelegt
-    if (_gameState.discardPile!.isActionCard && wasDrawnFromDeck) {
-      _handleActionCard(_gameState.discardPile!.value, true);
-    } else {
-      _nextPlayerTurn();
-    }
-
-    notifyListeners();
-  }
-
-  void swapWithPlayerCard(int cardIndex) {
-    if (_gameState.drawnCard == null ||
-        cardIndex >= GameConstants.maxCardsPerPlayer ||
-        !_gameState.isHumanTurn) {
-      return;
-    }
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player humanPlayer = updatedPlayers[0];
-
-    if (cardIndex >= humanPlayer.cards.length) {
-      return;
-    }
-
-    List<GameCard> updatedCards = List.from(humanPlayer.cards);
-    GameCard oldCard = updatedCards[cardIndex];
-
-    updatedCards[cardIndex] = _gameState.drawnCard!.copyWith(isVisible: false);
-
-    updatedPlayers[0] = humanPlayer.copyWith(cards: updatedCards);
-
-    _gameState = _gameState.copyWith(
-      players: updatedPlayers,
-      discardPile: oldCard.copyWith(isVisible: true),
-      drawnCard: null,
-      showDrawnCard: false,
-      hasDrawnCardThisTurn: false,
-    );
-
-    print(
-      '🔄 Karte ${_gameState.drawnCard?.value} mit Spielerkarte ${oldCard.value} getauscht',
-    );
-
-    // WICHTIG: Aktionskarte nicht aktivierbar wenn getauscht
-    if (updatedCards[cardIndex].isActionCard) {
-      _handleActionCard(updatedCards[cardIndex].value, false);
-    }
-
-    _nextPlayerTurn();
-    notifyListeners();
-  }
-
-  void callPawsy() {
-    if (!_gameState.canCallPawsy || !_gameState.isHumanTurn) {
-      return;
-    }
-
-    _gameState = _gameState.copyWith(phase: GamePhase.gameOver);
-
-    print('🐾 PAWSY gerufen! Spiel beendet.');
-    _calculateFinalScores();
-    notifyListeners();
-  }
-
-  // AKTIONSKARTEN HANDLING
-  void _handleActionCard(int cardValue, bool canActivate) {
-    if (!canActivate || !_gameState.currentPlayer.isHuman) {
-      _nextPlayerTurn();
-      return;
-    }
-
-    if (cardValue >= 6 && cardValue <= 7) {
-      // SCOUT
-      print('🔍 SCOUT-Karte gespielt - wähle eine deiner Karten!');
-      _gameState = _gameState.copyWith(
-        actionPhase: ActionCardPhase.scoutSelectCard,
-        activeActionCard: cardValue,
-      );
-    } else if (cardValue >= 8 && cardValue <= 9) {
-      // STALK
-      print('👁️ STALK-Karte gespielt - wähle einen Gegner!');
-      _gameState = _gameState.copyWith(
-        actionPhase: ActionCardPhase.stalkSelectPlayer,
-        activeActionCard: cardValue,
-      );
-    } else if (cardValue >= 10 && cardValue <= 11) {
-      // SWITCH
-      print('🔄 SWITCH-Karte gespielt - wähle einen Gegner!');
-      _gameState = _gameState.copyWith(
-        actionPhase: ActionCardPhase.switchSelectPlayer,
-        activeActionCard: cardValue,
-      );
-    } else {
-      _nextPlayerTurn();
-    }
-
-    notifyListeners();
-  }
-
-  // SCOUT AKTION - FIXED
-  void selectCardForScout(int cardIndex) {
-    if (_gameState.actionPhase != ActionCardPhase.scoutSelectCard ||
-        !_gameState.isHumanTurn)
-      return;
-
-    Player humanPlayer = _gameState.players[0];
-    if (cardIndex >= humanPlayer.cards.length) return;
-
-    // Starte Highlight-Animation - ABER ÄNDERE NICHT isVisible!
-    _gameState = _gameState.copyWith(
-      animationPhase: AnimationPhase.highlighting,
-      highlightedPlayerIndex: 0,
-      highlightedCardIndex: cardIndex,
-      isAnimating: true,
-      // WICHTIG: Setze nur revealedCard für temporäre Anzeige
-      revealedPlayerIndex: 0,
-      revealedCardIndex: cardIndex,
-    );
-
-    // ENTFERNT: Kein dauerhaftes isVisible setzen mehr!
-    GameCard scoutedCard = humanPlayer.cards[cardIndex];
-
-    print(
-      '🔍 SCOUT: Karte ${cardIndex + 1} erkundet - Wert: ${scoutedCard.value}',
-    );
-
-    // Nach 2 Sekunden Animation beenden
-    Future.delayed(const Duration(seconds: 2), () {
-      _finishScoutAction();
-    });
-
-    notifyListeners();
-  }
-
-  void _finishScoutAction() {
-    // FIXED: Keine Änderung an isVisible mehr nötig
-    _gameState = _gameState.copyWith(
-      actionPhase: ActionCardPhase.none,
-      activeActionCard: null,
-      revealedPlayerIndex: null,
-      revealedCardIndex: null,
-      animationPhase: AnimationPhase.none,
-      highlightedPlayerIndex: null,
-      highlightedCardIndex: null,
-      isAnimating: false,
-    );
-
-    print('🔍 SCOUT beendet - Karte wieder verdeckt');
-    _nextPlayerTurn();
-    notifyListeners();
-  }
-
-  // STALK AKTION - FIXED
-  void selectPlayerForStalk(int playerIndex) {
-    if (_gameState.actionPhase != ActionCardPhase.stalkSelectPlayer ||
-        !_gameState.isHumanTurn)
-      return;
-    if (playerIndex == 0 || playerIndex >= _gameState.players.length) return;
-
-    _gameState = _gameState.copyWith(
-      actionPhase: ActionCardPhase.stalkSelectCard,
-      selectedPlayerIndex: playerIndex,
-    );
-
-    print('👁️ STALK: Spieler ${_gameState.players[playerIndex].name} gewählt');
-    notifyListeners();
-  }
-
-  void selectCardForStalk(int cardIndex) {
-    if (_gameState.actionPhase != ActionCardPhase.stalkSelectCard ||
-        _gameState.selectedPlayerIndex == null ||
-        !_gameState.isHumanTurn)
-      return;
-
-    Player targetPlayer = _gameState.players[_gameState.selectedPlayerIndex!];
-    if (cardIndex >= targetPlayer.cards.length) return;
-
-    // Starte Highlight-Animation - ABER ÄNDERE NICHT isVisible!
-    _gameState = _gameState.copyWith(
-      animationPhase: AnimationPhase.highlighting,
-      highlightedPlayerIndex: _gameState.selectedPlayerIndex,
-      highlightedCardIndex: cardIndex,
-      isAnimating: true,
-      // WICHTIG: Setze nur revealedCard für temporäre Anzeige
-      revealedPlayerIndex: _gameState.selectedPlayerIndex,
-      revealedCardIndex: cardIndex,
-    );
-
-    // ENTFERNT: Kein dauerhaftes isVisible setzen mehr!
-    GameCard stalkedCard = targetPlayer.cards[cardIndex];
-
-    print(
-      '👁️ STALK: ${targetPlayer.name}s Karte ${cardIndex + 1} verfolgt - Wert: ${stalkedCard.value}',
-    );
-
-    // Nach 2 Sekunden Animation beenden
-    Future.delayed(const Duration(seconds: 2), () {
-      _finishStalkAction();
-    });
-
-    notifyListeners();
-  }
-
-  void _finishStalkAction() {
-    // FIXED: Keine Änderung an isVisible mehr nötig
-    _gameState = _gameState.copyWith(
-      actionPhase: ActionCardPhase.none,
-      activeActionCard: null,
-      selectedPlayerIndex: null,
-      revealedPlayerIndex: null,
-      revealedCardIndex: null,
-      animationPhase: AnimationPhase.none,
-      highlightedPlayerIndex: null,
-      highlightedCardIndex: null,
-      isAnimating: false,
-    );
-
-    print('👁️ STALK beendet - Karte wieder verdeckt');
-    _nextPlayerTurn();
-    notifyListeners();
-  }
-
-  // SWITCH AKTION
-  void selectPlayerForSwitch(int playerIndex) {
-    if (_gameState.actionPhase != ActionCardPhase.switchSelectPlayer ||
-        playerIndex == 0 ||
-        playerIndex >= _gameState.players.length ||
-        !_gameState.isHumanTurn)
-      return;
-
-    _gameState = _gameState.copyWith(
-      actionPhase: ActionCardPhase.switchSelectOwnCard,
-      selectedPlayerIndex: playerIndex,
-    );
-
-    print('🔄 SWITCH: Spieler ${_gameState.players[playerIndex].name} gewählt');
-    notifyListeners();
-  }
-
-  void selectOwnCardForSwitch(int cardIndex) {
-    if (_gameState.actionPhase != ActionCardPhase.switchSelectOwnCard ||
-        !_gameState.isHumanTurn)
-      return;
-
-    Player humanPlayer = _gameState.players[0];
-    if (cardIndex >= humanPlayer.cards.length) return;
-
-    _gameState = _gameState.copyWith(
-      actionPhase: ActionCardPhase.switchSelectOpponentCard,
-      selectedCardIndex: cardIndex,
-    );
-
-    print('🔄 SWITCH: Eigene Karte ${cardIndex + 1} gewählt');
-    notifyListeners();
-  }
-
-  void selectOpponentCardForSwitch(int cardIndex) {
-    if (_gameState.actionPhase != ActionCardPhase.switchSelectOpponentCard ||
-        _gameState.selectedPlayerIndex == null ||
-        _gameState.selectedCardIndex == null ||
-        !_gameState.isHumanTurn)
-      return;
-
-    Player targetPlayer = _gameState.players[_gameState.selectedPlayerIndex!];
-    if (cardIndex >= targetPlayer.cards.length) return;
-
-    // Starte Switch-Animation
-    _gameState = _gameState.copyWith(
-      animationPhase: AnimationPhase.switching,
-      switchingCards: [
-        (0, _gameState.selectedCardIndex!), // Human Player Karte
-        (_gameState.selectedPlayerIndex!, cardIndex), // Opponent Karte
-      ],
-      isAnimating: true,
-    );
-
-    print(
-      '🔄 SWITCH: Animation gestartet zwischen dir und ${targetPlayer.name}',
-    );
-
-    // Starte Tausch-Animation (2.2 Sekunden total)
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      _finishSwitchAction(cardIndex);
-    });
-
-    notifyListeners();
-  }
-
-  void _finishSwitchAction(int opponentCardIndex) {
-    if (_gameState.selectedPlayerIndex == null ||
-        _gameState.selectedCardIndex == null)
-      return;
-
-    // Führe den Kartentausch durch
-    List<Player> updatedPlayers = List.from(_gameState.players);
-
-    Player humanPlayer = updatedPlayers[0];
-    Player opponentPlayer = updatedPlayers[_gameState.selectedPlayerIndex!];
-
-    List<GameCard> humanCards = List.from(humanPlayer.cards);
-    List<GameCard> opponentCards = List.from(opponentPlayer.cards);
-
-    // Tausche die Karten
-    GameCard humanCard = humanCards[_gameState.selectedCardIndex!];
-    GameCard opponentCard = opponentCards[opponentCardIndex];
-
-    humanCards[_gameState.selectedCardIndex!] = opponentCard.copyWith(
-      isVisible: false,
-    );
-    opponentCards[opponentCardIndex] = humanCard.copyWith(isVisible: false);
-
-    updatedPlayers[0] = humanPlayer.copyWith(cards: humanCards);
-    updatedPlayers[_gameState.selectedPlayerIndex!] = opponentPlayer.copyWith(
-      cards: opponentCards,
-    );
-
-    _gameState = _gameState.copyWith(
-      players: updatedPlayers,
-      actionPhase: ActionCardPhase.none,
-      activeActionCard: null,
-      selectedPlayerIndex: null,
-      selectedCardIndex: null,
-      animationPhase: AnimationPhase.none,
-      switchingCards: [],
-      isAnimating: false,
-    );
-
-    print(
-      '🔄 SWITCH: Karten getauscht zwischen dir und ${opponentPlayer.name}',
-    );
-    _nextPlayerTurn();
-    notifyListeners();
-  }
-
-  // HILFSMETHODEN
-  void cancelActionCard() {
-    if (!_gameState.isHumanTurn) return;
-
-    _gameState = _gameState.copyWith(
-      actionPhase: ActionCardPhase.none,
-      activeActionCard: null,
-      selectedPlayerIndex: null,
-      selectedCardIndex: null,
-      revealedPlayerIndex: null,
-      revealedCardIndex: null,
-    );
-
-    _nextPlayerTurn();
-    notifyListeners();
-  }
+  // =============================================================================
+  // UTILITY METHODS
+  // =============================================================================
 
   void _calculateFinalScores() {
-    for (int i = 0; i < _gameState.players.length; i++) {
-      Player player = _gameState.players[i];
-      int score = player.totalScore;
-      print('${player.name}: $score Punkte');
+    Map<String, int> scores = TurnService.calculateFinalScores(_gameState);
+    for (String player in scores.keys) {
+      print('$player: ${scores[player]} Punkte');
     }
-  }
-
-  void revealPlayerCard(int playerIndex, int cardIndex) {
-    if (playerIndex >= _gameState.players.length) {
-      return;
-    }
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player player = updatedPlayers[playerIndex];
-
-    if (cardIndex >= player.cards.length) {
-      return;
-    }
-
-    List<GameCard> updatedCards = List.from(player.cards);
-    updatedCards[cardIndex] = updatedCards[cardIndex].copyWith(isVisible: true);
-
-    updatedPlayers[playerIndex] = player.copyWith(cards: updatedCards);
-
-    _gameState = _gameState.copyWith(players: updatedPlayers);
-    notifyListeners();
   }
 
   void debugRevealHumanCards() {
-    if (_gameState.players.isEmpty) {
-      return;
-    }
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player humanPlayer = updatedPlayers[0];
-
-    List<GameCard> updatedCards = humanPlayer.cards
-        .map((card) => card.copyWith(isVisible: true))
-        .toList();
-
-    updatedPlayers[0] = humanPlayer.copyWith(cards: updatedCards);
-
-    _gameState = _gameState.copyWith(players: updatedPlayers);
+    _gameState = CardService.debugRevealHumanCards(_gameState);
     notifyListeners();
   }
 }
