@@ -1,4 +1,4 @@
-// lib/controllers/game_controller.dart - ERWEITERT MIT AKTIONSKARTEN
+// lib/controllers/game_controller.dart - BUGFIX für Kartensichtbarkeit
 import 'package:flutter/foundation.dart';
 import '../models/game_state.dart';
 import '../models/player.dart';
@@ -491,7 +491,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // SCOUT AKTION
+  // SCOUT AKTION - FIXED
   void selectCardForScout(int cardIndex) {
     if (_gameState.actionPhase != ActionCardPhase.scoutSelectCard ||
         !_gameState.isHumanTurn)
@@ -500,27 +500,19 @@ class GameController extends ChangeNotifier {
     Player humanPlayer = _gameState.players[0];
     if (cardIndex >= humanPlayer.cards.length) return;
 
-    // Starte Highlight-Animation
+    // Starte Highlight-Animation - ABER ÄNDERE NICHT isVisible!
     _gameState = _gameState.copyWith(
       animationPhase: AnimationPhase.highlighting,
       highlightedPlayerIndex: 0,
       highlightedCardIndex: cardIndex,
       isAnimating: true,
-    );
-
-    // Reveal nur für Human Player
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    List<GameCard> updatedCards = List.from(humanPlayer.cards);
-    GameCard scoutedCard = updatedCards[cardIndex];
-
-    updatedCards[cardIndex] = scoutedCard.copyWith(isVisible: true);
-    updatedPlayers[0] = humanPlayer.copyWith(cards: updatedCards);
-
-    _gameState = _gameState.copyWith(
-      players: updatedPlayers,
+      // WICHTIG: Setze nur revealedCard für temporäre Anzeige
       revealedPlayerIndex: 0,
       revealedCardIndex: cardIndex,
     );
+
+    // ENTFERNT: Kein dauerhaftes isVisible setzen mehr!
+    GameCard scoutedCard = humanPlayer.cards[cardIndex];
 
     print(
       '🔍 SCOUT: Karte ${cardIndex + 1} erkundet - Wert: ${scoutedCard.value}',
@@ -535,22 +527,8 @@ class GameController extends ChangeNotifier {
   }
 
   void _finishScoutAction() {
-    if (_gameState.revealedPlayerIndex == null ||
-        _gameState.revealedCardIndex == null)
-      return;
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player humanPlayer = updatedPlayers[_gameState.revealedPlayerIndex!];
-
-    List<GameCard> updatedCards = List.from(humanPlayer.cards);
-    updatedCards[_gameState.revealedCardIndex!] =
-        updatedCards[_gameState.revealedCardIndex!].copyWith(isVisible: false);
-    updatedPlayers[_gameState.revealedPlayerIndex!] = humanPlayer.copyWith(
-      cards: updatedCards,
-    );
-
+    // FIXED: Keine Änderung an isVisible mehr nötig
     _gameState = _gameState.copyWith(
-      players: updatedPlayers,
       actionPhase: ActionCardPhase.none,
       activeActionCard: null,
       revealedPlayerIndex: null,
@@ -566,7 +544,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // STALK AKTION
+  // STALK AKTION - FIXED
   void selectPlayerForStalk(int playerIndex) {
     if (_gameState.actionPhase != ActionCardPhase.stalkSelectPlayer ||
         !_gameState.isHumanTurn)
@@ -591,29 +569,19 @@ class GameController extends ChangeNotifier {
     Player targetPlayer = _gameState.players[_gameState.selectedPlayerIndex!];
     if (cardIndex >= targetPlayer.cards.length) return;
 
-    // Starte Highlight-Animation
+    // Starte Highlight-Animation - ABER ÄNDERE NICHT isVisible!
     _gameState = _gameState.copyWith(
       animationPhase: AnimationPhase.highlighting,
       highlightedPlayerIndex: _gameState.selectedPlayerIndex,
       highlightedCardIndex: cardIndex,
       isAnimating: true,
-    );
-
-    // Reveal nur für Human Player (der die Aktion ausführt)
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    List<GameCard> updatedCards = List.from(targetPlayer.cards);
-    GameCard stalkedCard = updatedCards[cardIndex];
-
-    updatedCards[cardIndex] = stalkedCard.copyWith(isVisible: true);
-    updatedPlayers[_gameState.selectedPlayerIndex!] = targetPlayer.copyWith(
-      cards: updatedCards,
-    );
-
-    _gameState = _gameState.copyWith(
-      players: updatedPlayers,
+      // WICHTIG: Setze nur revealedCard für temporäre Anzeige
       revealedPlayerIndex: _gameState.selectedPlayerIndex,
       revealedCardIndex: cardIndex,
     );
+
+    // ENTFERNT: Kein dauerhaftes isVisible setzen mehr!
+    GameCard stalkedCard = targetPlayer.cards[cardIndex];
 
     print(
       '👁️ STALK: ${targetPlayer.name}s Karte ${cardIndex + 1} verfolgt - Wert: ${stalkedCard.value}',
@@ -628,22 +596,8 @@ class GameController extends ChangeNotifier {
   }
 
   void _finishStalkAction() {
-    if (_gameState.revealedPlayerIndex == null ||
-        _gameState.revealedCardIndex == null)
-      return;
-
-    List<Player> updatedPlayers = List.from(_gameState.players);
-    Player targetPlayer = updatedPlayers[_gameState.revealedPlayerIndex!];
-
-    List<GameCard> updatedCards = List.from(targetPlayer.cards);
-    updatedCards[_gameState.revealedCardIndex!] =
-        updatedCards[_gameState.revealedCardIndex!].copyWith(isVisible: false);
-    updatedPlayers[_gameState.revealedPlayerIndex!] = targetPlayer.copyWith(
-      cards: updatedCards,
-    );
-
+    // FIXED: Keine Änderung an isVisible mehr nötig
     _gameState = _gameState.copyWith(
-      players: updatedPlayers,
       actionPhase: ActionCardPhase.none,
       activeActionCard: null,
       selectedPlayerIndex: null,
