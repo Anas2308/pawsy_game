@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'multi_swap_controller.dart';
 import 'smart_ai_controller.dart';
+import 'action_card_controller.dart';
 
 class GameController {
   String gamePhase = 'look_at_cards';
@@ -16,6 +17,7 @@ class GameController {
   bool hasPerformedActionThisTurn = false;
   String? pawsyCaller;
   int remainingTurnsAfterPawsy = 0;
+  bool hasUsedActionCard = false;
 
   final SmartAIController smartAI = SmartAIController();
 
@@ -36,6 +38,7 @@ class GameController {
     hasPerformedActionThisTurn = false;
     pawsyCaller = null;
     remainingTurnsAfterPawsy = 0;
+    hasUsedActionCard = false;
     topDiscardCard = '7';
 
     smartAI.reset();
@@ -59,9 +62,22 @@ class GameController {
 
   void discardDrawnCard() {
     if (drawnCard != null) {
+      // Prüfe ob Aktionskarte und vom Deck gezogen
+      final canUseAction = hasDrawnThisTurn && // War vom Deck
+          ActionCardController.isActionCard(drawnCard!) &&
+          currentPlayer == 'player';
+
       topDiscardCard = drawnCard!;
+
+      if (canUseAction) {
+        hasUsedActionCard = true; // Markiere dass Aktionskarte verfügbar ist
+      }
+
       drawnCard = null;
-      _endTurn();
+
+      if (!hasUsedActionCard) {
+        _endTurn(); // Nur Zug beenden wenn keine Aktionskarte verwendet
+      }
     }
   }
 
@@ -124,6 +140,63 @@ class GameController {
     return gamePhase == 'playing' &&
         !hasPerformedActionThisTurn &&
         drawnCard == null;
+  }
+
+  // Aktionskarten-Methoden
+  ActionCardType getPendingActionCard() {
+    if (hasUsedActionCard) {
+      return ActionCardController.getActionType(topDiscardCard);
+    }
+    return ActionCardType.none;
+  }
+
+  void executeActionCard(ActionCardResult result) {
+    if (result.isSuccess) {
+      if (result.revealedIndex != null) {
+        // LOOK oder SPY: Karte kurz aufdecken
+        if (currentPlayer == 'player') {
+          if (result.revealedIndex! < playerCardsVisible.length) {
+            playerCardsVisible[result.revealedIndex!] = true;
+          }
+        } else {
+          if (result.revealedIndex! < aiCardsVisible.length) {
+            aiCardsVisible[result.revealedIndex!] = true;
+          }
+        }
+
+        // Nach 3 Sekunden wieder verdecken
+        Future.delayed(const Duration(seconds: 3), () {
+          if (currentPlayer == 'player') {
+            if (result.revealedIndex! < playerCardsVisible.length) {
+              playerCardsVisible[result.revealedIndex!] = false;
+            }
+          } else {
+            if (result.revealedIndex! < aiCardsVisible.length) {
+              aiCardsVisible[result.revealedIndex!] = false;
+            }
+          }
+        });
+      }
+
+      if (result.tradePlayerIndex != null && result.tradeAIIndex != null) {
+        // TRADE: Karten tauschen
+        final tempCard = playerCards[result.tradePlayerIndex!];
+        playerCards[result.tradePlayerIndex!] = aiCards[result.tradeAIIndex!];
+        aiCards[result.tradeAIIndex!] = tempCard;
+
+        // KI über Tausch informieren
+        smartAI.updateCard(result.tradeAIIndex!, tempCard);
+        smartAI.observePlayerReveal(result.tradePlayerIndex!, result.tradePlayerCard!);
+      }
+    }
+
+    hasUsedActionCard = false;
+    _endTurn(); // Zug nach Aktionskarte beenden
+  }
+
+  void skipActionCard() {
+    hasUsedActionCard = false;
+    _endTurn();
   }
 
   void _endTurn() {
@@ -251,6 +324,9 @@ class GameController {
       final aiScore = calculateAIScore();
       final winner = playerScore <= aiScore ? 'Du' : 'KI';
       return 'Spiel beendet! $winner gewinnst! (Du: $playerScore, KI: $aiScore)';
+    } else if (hasUsedActionCard) {
+      final actionType = getPendingActionCard();
+      return 'Aktionskarte ${ActionCardController.getActionName(actionType)} verfügbar!';
     } else if (currentPlayer == 'ai') {
       return 'KI ist am Zug...';
     } else if (drawnCard != null) {

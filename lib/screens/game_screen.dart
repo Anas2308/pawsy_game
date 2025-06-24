@@ -5,9 +5,11 @@ import '../widgets/status_text_widget.dart';
 import '../widgets/drawn_card_widget.dart';
 import '../widgets/pawsy_button_widget.dart';
 import '../widgets/turn_indicator_widget.dart';
+import '../widgets/action_card_popup.dart';
 import '../logic/game_controller.dart';
 import '../logic/multi_select_controller.dart';
 import '../logic/turn_system_controller.dart';
+import '../logic/action_card_controller.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -29,12 +31,10 @@ class _GameScreenState extends State<GameScreen> {
       multiSelectController: multiSelectController,
     );
 
-    // Überwache Spieler-Wechsel
     _startTurnMonitoring();
   }
 
   void _startTurnMonitoring() {
-    // Checke alle 500ms ob KI am Zug ist
     Future.doWhile(() async {
       await Future.delayed(const Duration(milliseconds: 500));
 
@@ -163,6 +163,34 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  // NEU: Aktionskarten-Handler
+  void _handleUseActionCard() {
+    if (!turnSystemController.canPlayerAct || !gameController.hasUsedActionCard) return;
+
+    final actionType = gameController.getPendingActionCard();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ActionCardPopup(
+        actionType: actionType,
+        playerCards: gameController.playerCards,
+        aiCards: gameController.aiCards,
+        onActionComplete: (result) {
+          setState(() {
+            gameController.executeActionCard(result);
+          });
+
+          if (result.isSuccess) {
+            _showSuccessMessage(result.message);
+          } else {
+            _showPenaltyMessage(result.message);
+          }
+        },
+      ),
+    );
+  }
+
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -235,7 +263,10 @@ class _GameScreenState extends State<GameScreen> {
               drawnCard: gameController.drawnCard!,
               onDiscard: _handleDiscard,
               onSwap: _handleSwap,
+              onUseActionCard: _handleUseActionCard,
               selectedCount: multiSelectController.selectedCount,
+              hasActionCardAvailable: gameController.hasUsedActionCard,
+              actionCardType: gameController.getPendingActionCard(),
             ),
           PawsyButtonWidget(
             onPawsy: _handlePawsy,
