@@ -18,6 +18,11 @@ class CardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // LEER-Karten haben spezielle Darstellung
+    if (cardValue == 'LEER') {
+      return _buildEmptyCard();
+    }
+
     Color borderColor = Colors.black;
     double borderWidth = 1;
     List<BoxShadow>? shadows;
@@ -64,6 +69,25 @@ class CardWidget extends StatelessWidget {
               color: isVisible ? Colors.black : Colors.white,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard() {
+    return Container(
+      width: 50,
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[600]!, width: 2, style: BorderStyle.solid),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.remove,
+          color: Colors.grey[600],
+          size: 24,
         ),
       ),
     );

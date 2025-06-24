@@ -1,3 +1,5 @@
+import 'multi_swap_controller.dart';
+
 class GameController {
   String gamePhase = 'look_at_cards';
   List<bool> playerCardsVisible = [false, false, false, false];
@@ -52,6 +54,51 @@ class GameController {
       drawnCard = null;
       hasDrawnThisTurn = false;
     }
+  }
+
+  MultiSwapResult executeMultiSwap(List<int> selectedIndices) {
+    if (drawnCard == null) {
+      return MultiSwapResult.failure('Keine Karte gezogen');
+    }
+
+    final result = MultiSwapController.executeMultiSwap(
+      playerCards: playerCards,
+      selectedIndices: selectedIndices,
+      drawnCard: drawnCard!,
+    );
+
+    if (result.isSuccess) {
+      playerCards = result.newPlayerCards!;
+      topDiscardCard = result.discardedCard!;
+      drawnCard = null;
+      hasDrawnThisTurn = false;
+    }
+
+    return result;
+  }
+
+  void revealCards(List<int> indices) {
+    for (int index in indices) {
+      if (index < playerCardsVisible.length) {
+        playerCardsVisible[index] = true;
+      }
+    }
+  }
+
+  void hideCards(List<int> indices) {
+    for (int index in indices) {
+      if (index < playerCardsVisible.length) {
+        playerCardsVisible[index] = false;
+      }
+    }
+  }
+
+  void endTurnAfterPenalty() {
+    if (drawnCard != null) {
+      topDiscardCard = drawnCard!;
+      drawnCard = null;
+    }
+    hasDrawnThisTurn = false;
   }
 
   String getStatusText() {

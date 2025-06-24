@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/player_area.dart';
 import '../widgets/deck_area.dart';
+import '../widgets/status_text_widget.dart';
+import '../widgets/drawn_card_widget.dart';
 import '../logic/game_controller.dart';
 import '../logic/multi_select_controller.dart';
 
@@ -70,6 +72,59 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  void _handleMultiSwap() {
+    final selectedIndices = multiSelectController.getSelectedIndices();
+    final result = gameController.executeMultiSwap(selectedIndices);
+
+    debugPrint('🎯 Multi-Swap: ${result.message}');
+
+    if (result.isSuccess) {
+      // Erfolgreicher Duett/Triplett
+      setState(() {
+        multiSelectController.resetSelection();
+      });
+
+      _showSuccessMessage(result.message);
+    } else if (result.isPenalty) {
+      // Fehler - Karten aufdecken als Strafe
+      setState(() {
+        gameController.revealCards(result.revealedIndices!);
+        multiSelectController.resetSelection();
+      });
+
+      _showPenaltyMessage(result.message);
+
+      // Nach 3 Sekunden wieder verdecken und Zug beenden
+      Future.delayed(const Duration(seconds: 3), () {
+        setState(() {
+          gameController.hideCards(result.revealedIndices!);
+          gameController.endTurnAfterPenalty();
+        });
+        debugPrint('🙈 Strafe beendet - Zug zu Ende');
+      });
+    }
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ $message'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showPenaltyMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('❌ $message'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,179 +136,61 @@ class _GameScreenState extends State<GameScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _restartGame,
-            tooltip: 'Restart Game',
           ),
         ],
       ),
       body: Column(
         children: [
-          _buildStatusText(),
-          _buildOpponentArea(),
-          const Spacer(),
-          _buildDeckArea(),
-          _buildDrawnCardArea(),
-          const Spacer(),
-          _buildPlayerArea(),
-          _buildRestartButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusText() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      child: Text(
-        gameController.getStatusText(),
-        style: const TextStyle(color: Colors.white, fontSize: 14),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-
-  Widget _buildOpponentArea() {
-    return const PlayerArea(
-      playerName: 'Player 2',
-      isCurrentPlayer: false,
-      cardValues: ['?', '?', '?', '?'],
-    );
-  }
-
-  Widget _buildDeckArea() {
-    return DeckArea(
-      topDiscardCard: gameController.topDiscardCard,
-      onDrawFromDeck: () => setState(() => gameController.drawRandomCard()),
-      onDrawFromDiscard: () => setState(() => gameController.drawFromDiscard()),
-      canDraw: gameController.gamePhase == 'playing' && !gameController.hasDrawnThisTurn,
-    );
-  }
-
-  Widget _buildDrawnCardArea() {
-    if (gameController.drawnCard == null) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.yellow, width: 2),
-      ),
-      child: Column(
-        children: [
-          _buildDrawnCard(),
-          const SizedBox(height: 12),
-          _buildActionButtons(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawnCard() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text('Gezogen: ', style: TextStyle(color: Colors.white, fontSize: 16)),
-        Container(
-          width: 40,
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.black),
+          StatusTextWidget(statusText: gameController.getStatusText()),
+          const PlayerArea(
+            playerName: 'Player 2',
+            isCurrentPlayer: false,
+            cardValues: ['?', '?', '?', '?'],
           ),
-          child: Center(
-            child: Text(
-              gameController.drawnCard!,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
+          const Spacer(),
+          DeckArea(
+            topDiscardCard: gameController.topDiscardCard,
+            onDrawFromDeck: () => setState(() => gameController.drawRandomCard()),
+            onDrawFromDiscard: () => setState(() => gameController.drawFromDiscard()),
+            canDraw: gameController.gamePhase == 'playing' && !gameController.hasDrawnThisTurn,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ElevatedButton.icon(
-              onPressed: () => setState(() {
+          if (gameController.drawnCard != null)
+            DrawnCardWidget(
+              drawnCard: gameController.drawnCard!,
+              onDiscard: () => setState(() {
                 gameController.discardDrawnCard();
                 multiSelectController.resetSelection();
               }),
-              icon: const Icon(Icons.delete, size: 16),
-              label: const Text('Ablegen'),
+              onToggleMultiSelect: () => setState(() => multiSelectController.toggleMultiSelectMode()),
+              onMultiSwap: _handleMultiSwap,
+              isMultiSelectMode: multiSelectController.isMultiSelectMode,
+              selectedCount: multiSelectController.selectedCount,
+            ),
+          const Spacer(),
+          PlayerArea(
+            playerName: 'You',
+            isCurrentPlayer: true,
+            cardsVisible: gameController.playerCardsVisible,
+            cardValues: gameController.playerCards,
+            selectedCards: multiSelectController.selectedCards,
+            onCardTap: _onCardTap,
+            canSelectCards: (gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) ||
+                (gameController.gamePhase == 'playing' && gameController.drawnCard != null),
+            isMultiSelectMode: multiSelectController.isMultiSelectMode,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: _restartGame,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Restart Game'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
               ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: () => setState(() => multiSelectController.toggleMultiSelectMode()),
-              icon: Icon(
-                multiSelectController.isMultiSelectMode ? Icons.close : Icons.select_all,
-                size: 16,
-              ),
-              label: Text(multiSelectController.isMultiSelectMode ? 'Abbrechen' : 'Multi-Select'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: multiSelectController.isMultiSelectMode ? Colors.grey : Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        if (multiSelectController.isMultiSelectMode && multiSelectController.selectedCount > 1) ...[
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: () {
-              // TODO: Multi-Swap Logic hier einbauen
-              debugPrint('🎯 Multi-Swap noch nicht implementiert');
-            },
-            icon: const Icon(Icons.swap_horiz, size: 16),
-            label: Text('Duett/Triplett (${multiSelectController.selectedCount})'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
             ),
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildPlayerArea() {
-    return PlayerArea(
-      playerName: 'You',
-      isCurrentPlayer: true,
-      cardsVisible: gameController.playerCardsVisible,
-      cardValues: gameController.playerCards,
-      selectedCards: multiSelectController.selectedCards,
-      onCardTap: _onCardTap,
-      canSelectCards: (gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) ||
-          (gameController.gamePhase == 'playing' && gameController.drawnCard != null),
-      isMultiSelectMode: multiSelectController.isMultiSelectMode,
-    );
-  }
-
-  Widget _buildRestartButton() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: ElevatedButton.icon(
-        onPressed: _restartGame,
-        icon: const Icon(Icons.refresh),
-        label: const Text('Restart Game'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
-          foregroundColor: Colors.white,
-        ),
       ),
     );
   }
