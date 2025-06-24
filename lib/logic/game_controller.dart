@@ -61,18 +61,46 @@ class GameController {
   }
 
   void swapCard(int cardIndex) {
+    debugPrint('🔧 DEBUG swapCard: Start - cardIndex=$cardIndex, drawnCard=${state.drawnCard}');
+
+    if (state.drawnCard == null) {
+      debugPrint('❌ ERROR: Keine gezogene Karte vorhanden!');
+      return;
+    }
+
+    // WICHTIG: drawnCard VOR dem Swap speichern!
+    final originalDrawnCard = state.drawnCard!;
+
     cards.swapCard(state, cardIndex);
-    smartAI.updateCard(cardIndex, state.drawnCard!);
+
+    // KI über Kartenwechsel informieren (mit gespeicherter Karte)
+    if (state.currentPlayer == 'player') {
+      smartAI.updateCard(cardIndex, originalDrawnCard);
+      debugPrint('🤖 KI informiert: Player Karte $cardIndex geändert zu $originalDrawnCard');
+    }
+
+    debugPrint('🔧 DEBUG swapCard: Nach Tausch - drawnCard=${state.drawnCard}');
+    debugPrint('🔧 DEBUG swapCard: Calling _endTurn()');
+
     _endTurn();
+
+    debugPrint('🔧 DEBUG swapCard: _endTurn() completed, currentPlayer=${state.currentPlayer}');
   }
 
   MultiSwapResult executeMultiSwap(List<int> selectedIndices) {
+    if (state.drawnCard == null) {
+      debugPrint('❌ ERROR: Keine gezogene Karte für Multi-Swap vorhanden!');
+      return MultiSwapResult.failure('Keine gezogene Karte');
+    }
+
+    final originalDrawnCard = state.drawnCard!;
     final result = cards.executeMultiSwap(state, selectedIndices);
+
     if (result.isSuccess) {
       for (int i = 1; i < selectedIndices.length; i++) {
         smartAI.setCardEmpty(selectedIndices[i]);
       }
-      smartAI.updateCard(selectedIndices.first, state.drawnCard!);
+      smartAI.updateCard(selectedIndices.first, originalDrawnCard);
       _endTurn();
     }
     return result;
@@ -254,12 +282,21 @@ class GameController {
   }
 
   void _endTurn() {
+    debugPrint('🔧 DEBUG _endTurn: Start - currentPlayer=${state.currentPlayer}');
+
     state.endTurn();
+    debugPrint('🔧 DEBUG _endTurn: state.endTurn() completed');
 
     final gameEnded = pawsy.processTurnEnd(state);
-    if (gameEnded) return;
+    debugPrint('🔧 DEBUG _endTurn: pawsy.processTurnEnd returned $gameEnded');
+
+    if (gameEnded) {
+      debugPrint('🏁 Game ended, stopping turn processing');
+      return;
+    }
 
     state.switchPlayer();
+    debugPrint('🔧 DEBUG _endTurn: Player switched to ${state.currentPlayer}');
   }
 
   void nextTurn() => _endTurn();
