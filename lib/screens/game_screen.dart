@@ -3,6 +3,7 @@ import '../widgets/player_area.dart';
 import '../widgets/deck_area.dart';
 import '../widgets/status_text_widget.dart';
 import '../widgets/drawn_card_widget.dart';
+import '../widgets/pawsy_button_widget.dart';
 import '../logic/game_controller.dart';
 import '../logic/multi_select_controller.dart';
 
@@ -68,14 +69,12 @@ class _GameScreenState extends State<GameScreen> {
     final selectedIndices = multiSelectController.getSelectedIndices();
 
     if (selectedIndices.length == 1) {
-      // Einzeltausch
       setState(() {
         gameController.swapCard(selectedIndices.first);
         multiSelectController.resetSelection();
       });
       debugPrint('🔄 Einzeltausch Karte ${selectedIndices.first}');
     } else {
-      // Multi-Swap (Duett/Triplett)
       final result = gameController.executeMultiSwap(selectedIndices);
       debugPrint('🎯 Multi-Swap: ${result.message}');
 
@@ -102,6 +101,26 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  void _handlePawsy() {
+    setState(() {
+      gameController.callPawsy();
+    });
+    debugPrint('🐾 PAWSY gerufen!');
+
+    _showPawsyMessage('PAWSY gerufen! Das Spiel endet bald...');
+
+    // Simuliere Gegner-Zug nach 2 Sekunden
+    Future.delayed(const Duration(seconds: 2), () {
+      setState(() {
+        gameController.nextTurn();
+      });
+
+      if (gameController.gamePhase == 'game_ended') {
+        _showGameEndMessage('Spiel beendet! Deine Punkte: ${gameController.calculateScore()}');
+      }
+    });
+  }
+
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -118,6 +137,26 @@ class _GameScreenState extends State<GameScreen> {
         content: Text('❌ $message'),
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showPawsyMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🐾 $message'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showGameEndMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🏁 $message'),
+        backgroundColor: Colors.purple,
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -161,6 +200,10 @@ class _GameScreenState extends State<GameScreen> {
               onSwap: _handleSwap,
               selectedCount: multiSelectController.selectedCount,
             ),
+          PawsyButtonWidget(
+            onPawsy: _handlePawsy,
+            canCallPawsy: gameController.canCallPawsy(),
+          ),
           const Spacer(),
           PlayerArea(
             playerName: 'You',
