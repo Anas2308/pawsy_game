@@ -4,18 +4,14 @@ import 'action_buttons_widget.dart';
 class DrawnCardWidget extends StatelessWidget {
   final String drawnCard;
   final VoidCallback onDiscard;
-  final VoidCallback onToggleMultiSelect;
-  final VoidCallback? onMultiSwap;
-  final bool isMultiSelectMode;
+  final VoidCallback? onSwap;
   final int selectedCount;
 
   const DrawnCardWidget({
     super.key,
     required this.drawnCard,
     required this.onDiscard,
-    required this.onToggleMultiSelect,
-    this.onMultiSwap,
-    required this.isMultiSelectMode,
+    this.onSwap,
     required this.selectedCount,
   });
 
@@ -35,9 +31,7 @@ class DrawnCardWidget extends StatelessWidget {
           const SizedBox(height: 12),
           ActionButtonsWidget(
             onDiscard: onDiscard,
-            onToggleMultiSelect: onToggleMultiSelect,
-            onMultiSwap: onMultiSwap,
-            isMultiSelectMode: isMultiSelectMode,
+            onSwap: onSwap,
             selectedCount: selectedCount,
           ),
         ],

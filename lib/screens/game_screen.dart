@@ -29,7 +29,7 @@ class _GameScreenState extends State<GameScreen> {
     if (gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) {
       _handleLookAtCard(cardIndex);
     } else if (gameController.gamePhase == 'playing' && gameController.drawnCard != null) {
-      _handleCardAction(cardIndex);
+      _handleCardSelection(cardIndex);
     }
   }
 
@@ -57,51 +57,48 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  void _handleCardAction(int cardIndex) {
-    if (multiSelectController.isMultiSelectMode) {
-      setState(() {
-        multiSelectController.toggleCardSelection(cardIndex);
-      });
-      debugPrint('🎯 Karte $cardIndex ${multiSelectController.selectedCards[cardIndex] ? "ausgewählt" : "abgewählt"}');
-    } else {
-      setState(() {
-        gameController.swapCard(cardIndex);
-        multiSelectController.resetSelection();
-      });
-      debugPrint('🔄 Karte $cardIndex getauscht');
-    }
+  void _handleCardSelection(int cardIndex) {
+    setState(() {
+      multiSelectController.toggleCardSelection(cardIndex);
+    });
+    debugPrint('🎯 Karte $cardIndex ${multiSelectController.selectedCards[cardIndex] ? "ausgewählt" : "abgewählt"}');
   }
 
-  void _handleMultiSwap() {
+  void _handleSwap() {
     final selectedIndices = multiSelectController.getSelectedIndices();
-    final result = gameController.executeMultiSwap(selectedIndices);
 
-    debugPrint('🎯 Multi-Swap: ${result.message}');
-
-    if (result.isSuccess) {
-      // Erfolgreicher Duett/Triplett
+    if (selectedIndices.length == 1) {
+      // Einzeltausch
       setState(() {
+        gameController.swapCard(selectedIndices.first);
         multiSelectController.resetSelection();
       });
+      debugPrint('🔄 Einzeltausch Karte ${selectedIndices.first}');
+    } else {
+      // Multi-Swap (Duett/Triplett)
+      final result = gameController.executeMultiSwap(selectedIndices);
+      debugPrint('🎯 Multi-Swap: ${result.message}');
 
-      _showSuccessMessage(result.message);
-    } else if (result.isPenalty) {
-      // Fehler - Karten aufdecken als Strafe
-      setState(() {
-        gameController.revealCards(result.revealedIndices!);
-        multiSelectController.resetSelection();
-      });
-
-      _showPenaltyMessage(result.message);
-
-      // Nach 3 Sekunden wieder verdecken und Zug beenden
-      Future.delayed(const Duration(seconds: 3), () {
+      if (result.isSuccess) {
         setState(() {
-          gameController.hideCards(result.revealedIndices!);
-          gameController.endTurnAfterPenalty();
+          multiSelectController.resetSelection();
         });
-        debugPrint('🙈 Strafe beendet - Zug zu Ende');
-      });
+        _showSuccessMessage(result.message);
+      } else if (result.isPenalty) {
+        setState(() {
+          gameController.revealCards(result.revealedIndices!);
+          multiSelectController.resetSelection();
+        });
+        _showPenaltyMessage(result.message);
+
+        Future.delayed(const Duration(seconds: 3), () {
+          setState(() {
+            gameController.hideCards(result.revealedIndices!);
+            gameController.endTurnAfterPenalty();
+          });
+          debugPrint('🙈 Strafe beendet - Zug zu Ende');
+        });
+      }
     }
   }
 
@@ -161,9 +158,7 @@ class _GameScreenState extends State<GameScreen> {
                 gameController.discardDrawnCard();
                 multiSelectController.resetSelection();
               }),
-              onToggleMultiSelect: () => setState(() => multiSelectController.toggleMultiSelectMode()),
-              onMultiSwap: _handleMultiSwap,
-              isMultiSelectMode: multiSelectController.isMultiSelectMode,
+              onSwap: _handleSwap,
               selectedCount: multiSelectController.selectedCount,
             ),
           const Spacer(),
@@ -176,7 +171,6 @@ class _GameScreenState extends State<GameScreen> {
             onCardTap: _onCardTap,
             canSelectCards: (gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) ||
                 (gameController.gamePhase == 'playing' && gameController.drawnCard != null),
-            isMultiSelectMode: multiSelectController.isMultiSelectMode,
           ),
           Padding(
             padding: const EdgeInsets.all(16),

@@ -1,23 +1,12 @@
 class MultiSelectController {
   List<bool> selectedCards = [false, false, false, false];
-  bool isMultiSelectMode = false;
 
   void resetSelection() {
     selectedCards = [false, false, false, false];
-    isMultiSelectMode = false;
-  }
-
-  void toggleMultiSelectMode() {
-    isMultiSelectMode = !isMultiSelectMode;
-    if (!isMultiSelectMode) {
-      selectedCards = [false, false, false, false];
-    }
   }
 
   void toggleCardSelection(int cardIndex) {
-    if (isMultiSelectMode) {
-      selectedCards[cardIndex] = !selectedCards[cardIndex];
-    }
+    selectedCards[cardIndex] = !selectedCards[cardIndex];
   }
 
   List<int> getSelectedIndices() {

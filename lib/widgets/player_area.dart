@@ -9,7 +9,6 @@ class PlayerArea extends StatelessWidget {
   final List<bool>? selectedCards;
   final Function(int)? onCardTap;
   final bool canSelectCards;
-  final bool isMultiSelectMode;
 
   const PlayerArea({
     super.key,
@@ -20,7 +19,6 @@ class PlayerArea extends StatelessWidget {
     this.selectedCards,
     this.onCardTap,
     this.canSelectCards = false,
-    this.isMultiSelectMode = false,
   });
 
   @override
@@ -51,7 +49,9 @@ class PlayerArea extends StatelessWidget {
             children: List.generate(4, (index) {
               final isVisible = cardsVisible?[index] ?? false;
               final isSelected = selectedCards?[index] ?? false;
-              final isSelectable = canSelectCards && !isVisible;
+
+              // NUR auswählbar wenn: canSelectCards UND nicht sichtbar UND nicht LEER
+              final isSelectable = canSelectCards && !isVisible && values[index] != 'LEER';
 
               return Padding(
                 padding: EdgeInsets.only(right: index < 3 ? 8 : 0),

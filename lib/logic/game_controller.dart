@@ -105,7 +105,7 @@ class GameController {
     if (gamePhase == 'look_at_cards') {
       return 'Schaue dir 2 Karten an ($cardsLookedAt/2)';
     } else if (drawnCard != null) {
-      return 'Gezogene Karte: $drawnCard\nAblegen oder Tauschen?';
+      return 'Gezogene Karte: $drawnCard\nKarten wählen → Tausch-Button klicken';
     } else if (hasDrawnThisTurn) {
       return 'Zug beendet - Nächster Spieler';
     } else {
