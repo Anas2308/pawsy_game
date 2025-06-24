@@ -4,8 +4,10 @@ import '../widgets/deck_area.dart';
 import '../widgets/status_text_widget.dart';
 import '../widgets/drawn_card_widget.dart';
 import '../widgets/pawsy_button_widget.dart';
+import '../widgets/turn_indicator_widget.dart';
 import '../logic/game_controller.dart';
 import '../logic/multi_select_controller.dart';
+import '../logic/turn_system_controller.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -17,6 +19,33 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   final GameController gameController = GameController();
   final MultiSelectController multiSelectController = MultiSelectController();
+  late final TurnSystemController turnSystemController;
+
+  @override
+  void initState() {
+    super.initState();
+    turnSystemController = TurnSystemController(
+      gameController: gameController,
+      multiSelectController: multiSelectController,
+    );
+
+    // Überwache Spieler-Wechsel
+    _startTurnMonitoring();
+  }
+
+  void _startTurnMonitoring() {
+    // Checke alle 500ms ob KI am Zug ist
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        await turnSystemController.processNextTurn();
+        if (mounted) setState(() {});
+      }
+
+      return mounted;
+    });
+  }
 
   void _restartGame() {
     setState(() {
@@ -27,6 +56,8 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _onCardTap(int cardIndex) {
+    if (!turnSystemController.canPlayerAct) return;
+
     if (gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) {
       _handleLookAtCard(cardIndex);
     } else if (gameController.gamePhase == 'playing' && gameController.drawnCard != null) {
@@ -66,6 +97,8 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _handleSwap() {
+    if (!turnSystemController.canPlayerAct) return;
+
     final selectedIndices = multiSelectController.getSelectedIndices();
 
     if (selectedIndices.length == 1) {
@@ -102,22 +135,31 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _handlePawsy() {
+    if (!turnSystemController.canPlayerAct) return;
+
     setState(() {
       gameController.callPawsy();
     });
     debugPrint('🐾 PAWSY gerufen!');
 
     _showPawsyMessage('PAWSY gerufen! Das Spiel endet bald...');
+  }
 
-    // Simuliere Gegner-Zug nach 2 Sekunden
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        gameController.nextTurn();
-      });
+  void _handleDrawFromDeck() {
+    if (!turnSystemController.canPlayerAct) return;
+    setState(() => gameController.drawRandomCard());
+  }
 
-      if (gameController.gamePhase == 'game_ended') {
-        _showGameEndMessage('Spiel beendet! Deine Punkte: ${gameController.calculateScore()}');
-      }
+  void _handleDrawFromDiscard() {
+    if (!turnSystemController.canPlayerAct) return;
+    setState(() => gameController.drawFromDiscard());
+  }
+
+  void _handleDiscard() {
+    if (!turnSystemController.canPlayerAct) return;
+    setState(() {
+      gameController.discardDrawnCard();
+      multiSelectController.resetSelection();
     });
   }
 
@@ -151,16 +193,6 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  void _showGameEndMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🏁 $message'),
-        backgroundColor: Colors.purple,
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,42 +210,48 @@ class _GameScreenState extends State<GameScreen> {
       body: Column(
         children: [
           StatusTextWidget(statusText: gameController.getStatusText()),
-          const PlayerArea(
-            playerName: 'Player 2',
-            isCurrentPlayer: false,
-            cardValues: ['?', '?', '?', '?'],
+          TurnIndicatorWidget(
+            currentPlayer: turnSystemController.getCurrentPlayerName(),
+            turnInfo: turnSystemController.getTurnInfo(),
+            isProcessing: turnSystemController.isProcessingAITurn,
+          ),
+          PlayerArea(
+            playerName: 'KI',
+            isCurrentPlayer: gameController.isAITurn,
+            cardValues: gameController.aiCards,
+            cardsVisible: gameController.aiCardsVisible,
           ),
           const Spacer(),
           DeckArea(
             topDiscardCard: gameController.topDiscardCard,
-            onDrawFromDeck: () => setState(() => gameController.drawRandomCard()),
-            onDrawFromDiscard: () => setState(() => gameController.drawFromDiscard()),
-            canDraw: gameController.gamePhase == 'playing' && !gameController.hasDrawnThisTurn,
+            onDrawFromDeck: _handleDrawFromDeck,
+            onDrawFromDiscard: _handleDrawFromDiscard,
+            canDraw: turnSystemController.canPlayerAct &&
+                gameController.gamePhase == 'playing' &&
+                !gameController.hasDrawnThisTurn,
           ),
           if (gameController.drawnCard != null)
             DrawnCardWidget(
               drawnCard: gameController.drawnCard!,
-              onDiscard: () => setState(() {
-                gameController.discardDrawnCard();
-                multiSelectController.resetSelection();
-              }),
+              onDiscard: _handleDiscard,
               onSwap: _handleSwap,
               selectedCount: multiSelectController.selectedCount,
             ),
           PawsyButtonWidget(
             onPawsy: _handlePawsy,
-            canCallPawsy: gameController.canCallPawsy(),
+            canCallPawsy: turnSystemController.canPlayerAct && gameController.canCallPawsy(),
           ),
           const Spacer(),
           PlayerArea(
             playerName: 'You',
-            isCurrentPlayer: true,
+            isCurrentPlayer: gameController.isPlayerTurn,
             cardsVisible: gameController.playerCardsVisible,
             cardValues: gameController.playerCards,
             selectedCards: multiSelectController.selectedCards,
             onCardTap: _onCardTap,
-            canSelectCards: (gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) ||
-                (gameController.gamePhase == 'playing' && gameController.drawnCard != null),
+            canSelectCards: turnSystemController.canPlayerAct &&
+                ((gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) ||
+                    (gameController.gamePhase == 'playing' && gameController.drawnCard != null)),
           ),
           Padding(
             padding: const EdgeInsets.all(16),

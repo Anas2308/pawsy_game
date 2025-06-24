@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'multi_swap_controller.dart';
 import 'smart_ai_controller.dart';
 
@@ -7,7 +8,7 @@ class GameController {
   List<bool> aiCardsVisible = [false, false, false, false];
   List<String> playerCards = ['7', '3', '9', '1'];
   List<String> aiCards = ['2', '8', '5', '11'];
-  String currentPlayer = 'player'; // 'player' or 'ai'
+  String currentPlayer = 'player';
   int cardsLookedAt = 0;
   String? drawnCard;
   String topDiscardCard = '7';
@@ -37,7 +38,6 @@ class GameController {
     remainingTurnsAfterPawsy = 0;
     topDiscardCard = '7';
 
-    // Smart AI initialisieren
     smartAI.reset();
     smartAI.setInitialCards(aiCards);
   }
@@ -98,7 +98,6 @@ class GameController {
         playerCards = result.newPlayerCards!;
       } else {
         aiCards = result.newPlayerCards!;
-        // KI über Änderungen informieren
         for (int i = 1; i < selectedIndices.length; i++) {
           smartAI.setCardEmpty(selectedIndices[i]);
         }
@@ -139,7 +138,6 @@ class GameController {
       }
     }
 
-    // Spielerwechsel
     currentPlayer = currentPlayer == 'player' ? 'ai' : 'player';
   }
 
@@ -150,7 +148,6 @@ class GameController {
   bool get isPlayerTurn => currentPlayer == 'player';
   bool get isAITurn => currentPlayer == 'ai';
 
-  // KI-Entscheidungen
   Future<AIDecision> getAIDecision() async {
     return smartAI.makeDecision(
       drawnCard: drawnCard,
@@ -171,7 +168,7 @@ class GameController {
     } else if (decision.isMultiSwap) {
       final result = executeMultiSwap(decision.cardIndices!);
       if (result.isPenalty) {
-        smartAI.observeCard(aiCards[decision.cardIndices!.first]);
+        debugPrint('🤖 KI lernt von Fehler');
       }
     } else if (decision.isDiscard) {
       discardDrawnCard();
@@ -184,7 +181,6 @@ class GameController {
     for (int index in indices) {
       if (currentPlayer == 'player' && index < playerCardsVisible.length) {
         playerCardsVisible[index] = true;
-        // KI beobachtet aufgedeckte Spielerkarten
         smartAI.observePlayerReveal(index, playerCards[index]);
       } else if (currentPlayer == 'ai' && index < aiCardsVisible.length) {
         aiCardsVisible[index] = true;
@@ -212,7 +208,6 @@ class GameController {
 
   void endGame() {
     gamePhase = 'game_ended';
-    // Alle Karten aufdecken
     for (int i = 0; i < playerCardsVisible.length; i++) {
       playerCardsVisible[i] = true;
       aiCardsVisible[i] = true;

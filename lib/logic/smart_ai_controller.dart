@@ -1,12 +1,12 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class SmartAIController {
-  // KI verfolgt Wahrscheinlichkeiten und Statistiken
   List<String?> knownCards = [null, null, null, null];
   List<String> aiCards = ['?', '?', '?', '?'];
-  List<String> seenCards = []; // Alle gesehenen Karten
-  Map<String, int> remainingCardCount = {}; // Verbleibende Karten im Deck
-  List<String> playerRevealedCards = []; // Was vom Gegner gesehen wurde
+  List<String> seenCards = [];
+  Map<String, int> remainingCardCount = {};
+  List<String> playerRevealedCards = [];
 
   SmartAIController() {
     _initializeDeck();
@@ -21,13 +21,11 @@ class SmartAIController {
 
   void setInitialCards(List<String> cards) {
     aiCards = List.from(cards);
-    // KI merkt sich ihre Startkarten
     final random = Random();
     final indices = [0, 1, 2, 3]..shuffle(random);
     knownCards[indices[0]] = cards[indices[0]];
     knownCards[indices[1]] = cards[indices[1]];
 
-    // Verfolge bekannte Karten
     for (String card in cards) {
       _removeCardFromDeck(card);
     }
@@ -50,6 +48,11 @@ class SmartAIController {
     observeCard(newCard);
   }
 
+  void setCardEmpty(int index) {
+    aiCards[index] = 'LEER';
+    knownCards[index] = 'LEER';
+  }
+
   void _removeCardFromDeck(String card) {
     if (remainingCardCount.containsKey(card) && remainingCardCount[card]! > 0) {
       remainingCardCount[card] = remainingCardCount[card]! - 1;
@@ -64,14 +67,12 @@ class SmartAIController {
     required bool canCallPawsy,
   }) {
 
-    // 1. Hochintelligente PAWSY-Entscheidung
     if (drawnCard == null && canCallPawsy) {
       if (_shouldCallPawsyStrategic()) {
         return AIDecision.pawsy();
       }
     }
 
-    // 2. Strategische Kartenziehung
     if (drawnCard == null) {
       if (_shouldDrawFromDiscardStrategic(topDiscardCard)) {
         return AIDecision.drawFromDiscard();
@@ -80,21 +81,15 @@ class SmartAIController {
       }
     }
 
-    // 3. Fortgeschrittene Entscheidung für gezogene Karte
     return _makeAdvancedCardDecision(drawnCard);
   }
 
   bool _shouldCallPawsyStrategic() {
-    // Berechne exakte Punktzahl basierend auf allem was KI weiß
     double myEstimatedScore = _calculateMyEstimatedScore();
     double opponentEstimatedScore = _calculateOpponentEstimatedScore();
 
-    print('🧠 KI Analysis: Meine Punkte ≈ $myEstimatedScore, Gegner ≈ $opponentEstimatedScore');
+    debugPrint('🧠 KI Analysis: Meine Punkte ≈ $myEstimatedScore, Gegner ≈ $opponentEstimatedScore');
 
-    // PAWSY nur wenn:
-    // 1. Meine Punkte wahrscheinlich niedrig (< 20)
-    // 2. Ich wahrscheinlich besser als Gegner
-    // 3. Genug Karten bekannt für Sicherheit
     int knownCardsCount = knownCards.where((c) => c != null && c != 'LEER').length;
 
     return myEstimatedScore < 20 &&
@@ -113,7 +108,6 @@ class SmartAIController {
       }
     }
 
-    // Für unbekannte Karten: Verwende Wahrscheinlichkeits-basierte Schätzung
     int unknownCount = _getActiveCardCount() - knownCount;
     if (unknownCount > 0) {
       double avgRemainingCardValue = _calculateAverageRemainingCardValue();
@@ -124,17 +118,11 @@ class SmartAIController {
   }
 
   double _calculateOpponentEstimatedScore() {
-    // Schätze Gegnerpunkte basierend auf:
-    // 1. Gesehene Karten bei Strafen
-    // 2. Durchschnittswerte
-    // 3. Spielverhalten
+    double baseEstimate = 6.5 * 4;
 
-    double baseEstimate = 6.5 * 4; // Durchschnittskarte * 4 Karten
-
-    // Adjustiere basierend auf gesehenen Gegnerkarten
     if (playerRevealedCards.isNotEmpty) {
       double revealedAvg = playerRevealedCards.map(_getCardValue).reduce((a, b) => a + b) / playerRevealedCards.length;
-      baseEstimate = revealedAvg * 4; // Hochrechnung
+      baseEstimate = revealedAvg * 4;
     }
 
     return baseEstimate;
@@ -153,53 +141,46 @@ class SmartAIController {
   }
 
   bool _shouldDrawFromDiscardStrategic(String topCard) {
-    int cardValue = _getCardValue(topCard);
+    double cardValue = _getCardValue(topCard);
     observeCard(topCard);
 
-    // Sehr niedrige Karten (0-3) immer nehmen
     if (cardValue <= 3) return true;
 
-    // Mittlere Karten nur wenn sie besser sind als geschätzte eigene schlechteste
     if (cardValue <= 7) {
-      int worstKnownValue = _getWorstKnownCardValue();
+      double worstKnownValue = _getWorstKnownCardValue();
       return cardValue < worstKnownValue - 2;
     }
 
-    // Hohe Karten nur in Notfällen
     return cardValue <= 8 && _getActiveCardCount() <= 2;
   }
 
   AIDecision _makeAdvancedCardDecision(String drawnCard) {
-    int cardValue = _getCardValue(drawnCard);
+    double cardValue = _getCardValue(drawnCard);
     observeCard(drawnCard);
 
-    // Finde beste Tausch-Position basierend auf Strategie
-    int bestSwapIndex = _findBestSwapPosition(cardValue);
+    int bestSwapIndex = _findBestSwapPosition(cardValue.toInt());
 
     if (bestSwapIndex != -1) {
-      // Erweiterte Logik: Prüfe Duett/Triplett Möglichkeiten
       List<int> duplicateIndices = _findDuplicates(drawnCard);
 
-      if (duplicateIndices.length >= 1 && cardValue <= 6) {
-        // Versuche Duett/Triplett wenn Karte gut ist
+      if (duplicateIndices.isNotEmpty && cardValue <= 6) {
         return AIDecision.multiSwap([bestSwapIndex, ...duplicateIndices]);
       }
 
       return AIDecision.swap(bestSwapIndex);
     }
 
-    // Ablegen wenn Karte nicht nützlich
     return AIDecision.discard();
   }
 
   int _findBestSwapPosition(int newCardValue) {
     int bestIndex = -1;
-    double bestImprovement = 0; // double statt int
+    double bestImprovement = 0;
 
     for (int i = 0; i < 4; i++) {
       if (knownCards[i] != null && knownCards[i] != 'LEER') {
-        double currentValue = _getCardValue(knownCards[i]!); // double
-        double improvement = currentValue - newCardValue; // double
+        double currentValue = _getCardValue(knownCards[i]!);
+        double improvement = currentValue - newCardValue;
 
         if (improvement > bestImprovement) {
           bestImprovement = improvement;
@@ -209,19 +190,6 @@ class SmartAIController {
     }
 
     return bestImprovement >= 2 ? bestIndex : -1;
-  }
-
-  int _getWorstKnownCardValue() {
-    double worst = 0; // double statt int
-
-    for (int i = 0; i < 4; i++) {
-      if (knownCards[i] != null && knownCards[i] != 'LEER') {
-        double value = _getCardValue(knownCards[i]!);
-        if (value > worst) worst = value;
-      }
-    }
-
-    return worst.toInt(); // zu int konvertieren
   }
 
   List<int> _findDuplicates(String targetCard) {
@@ -236,12 +204,12 @@ class SmartAIController {
     return duplicates;
   }
 
-  int _getWorstKnownCardValue() {
-    int worst = 0;
+  double _getWorstKnownCardValue() {
+    double worst = 0;
 
     for (int i = 0; i < 4; i++) {
       if (knownCards[i] != null && knownCards[i] != 'LEER') {
-        int value = _getCardValue(knownCards[i]!);
+        double value = _getCardValue(knownCards[i]!);
         if (value > worst) worst = value;
       }
     }
@@ -272,7 +240,7 @@ class SmartAIController {
 class AIDecision {
   final String action;
   final int? cardIndex;
-  final List<int>? cardIndices; // Für Multi-Swaps
+  final List<int>? cardIndices;
 
   AIDecision._(this.action, {this.cardIndex, this.cardIndices});
 
