@@ -9,7 +9,7 @@ import '../widgets/action_card_popup.dart';
 import '../logic/game_controller.dart';
 import '../logic/multi_select_controller.dart';
 import '../logic/turn_system_controller.dart';
-import '../logic/action_card_controller.dart';
+import 'game_ui_helpers.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -31,28 +31,19 @@ class _GameScreenState extends State<GameScreen> {
       multiSelectController: multiSelectController,
     );
 
-    _startTurnMonitoring();
-  }
-
-  void _startTurnMonitoring() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (mounted) {
-        await turnSystemController.processNextTurn();
-        if (mounted) setState(() {});
-      }
-
-      return mounted;
-    });
+    GameUIHelpers.startTurnMonitoring(
+      turnSystemController,
+          () => setState(() {}),
+          () => mounted,
+    );
   }
 
   void _restartGame() {
-    setState(() {
-      gameController.restartGame();
-      multiSelectController.resetSelection();
-    });
-    debugPrint('🔄 Game restarted!');
+    GameUIHelpers.restartGame(
+      gameController,
+      multiSelectController,
+          () => setState(() {}),
+    );
   }
 
   void _onCardTap(int cardIndex) {
@@ -71,8 +62,6 @@ class _GameScreenState extends State<GameScreen> {
       gameController.cardsLookedAt++;
     });
 
-    debugPrint('🃏 Karte $cardIndex aufgedeckt! (${gameController.cardsLookedAt}/2)');
-
     Future.delayed(const Duration(seconds: 2), () {
       setState(() {
         gameController.playerCardsVisible[cardIndex] = false;
@@ -83,7 +72,6 @@ class _GameScreenState extends State<GameScreen> {
           setState(() {
             gameController.gamePhase = 'playing';
           });
-          debugPrint('🎮 Spiel gestartet!');
         });
       }
     });
@@ -93,7 +81,6 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       multiSelectController.toggleCardSelection(cardIndex);
     });
-    debugPrint('🎯 Karte $cardIndex ${multiSelectController.selectedCards[cardIndex] ? "ausgewählt" : "abgewählt"}');
   }
 
   void _handleSwap() {
@@ -106,10 +93,8 @@ class _GameScreenState extends State<GameScreen> {
         gameController.swapCard(selectedIndices.first);
         multiSelectController.resetSelection();
       });
-      debugPrint('🔄 Einzeltausch Karte ${selectedIndices.first}');
     } else {
       final result = gameController.executeMultiSwap(selectedIndices);
-      debugPrint('🎯 Multi-Swap: ${result.message}');
 
       if (result.isSuccess) {
         setState(() {
@@ -128,65 +113,15 @@ class _GameScreenState extends State<GameScreen> {
             gameController.hideCards(result.revealedIndices!);
             gameController.endTurnAfterPenalty();
           });
-          debugPrint('🙈 Strafe beendet - Zug zu Ende');
         });
       }
     }
   }
 
-  void _handlePawsy() {
-    if (!turnSystemController.canPlayerAct) return;
-
-    setState(() {
-      gameController.callPawsy();
-    });
-    debugPrint('🐾 PAWSY gerufen!');
-
-    _showPawsyMessage('PAWSY gerufen! Das Spiel endet bald...');
-  }
-
-  void _handleDrawFromDeck() {
-    if (!turnSystemController.canPlayerAct) return;
-    setState(() => gameController.drawRandomCard());
-    debugPrint('🎴 Karte vom Deck gezogen: ${gameController.drawnCard}');
-  }
-
-  void _handleDrawFromDiscard() {
-    if (!turnSystemController.canPlayerAct) return;
-    setState(() => gameController.drawFromDiscard());
-    debugPrint('🎴 Karte vom Ablagestapel gezogen: ${gameController.drawnCard}');
-  }
-
-  void _handleDiscard() {
-    if (!turnSystemController.canPlayerAct) return;
-
-    final drawnCard = gameController.drawnCard;
-
-    setState(() {
-      gameController.discardDrawnCard();
-      multiSelectController.resetSelection();
-    });
-
-    debugPrint('🗑️ Karte $drawnCard abgelegt');
-
-    // WICHTIG: Prüfe NACH dem Ablegen ob Aktionskarte verfügbar ist
-    // (hasUsedActionCard wird nur bei Deck-Karten auf true gesetzt)
-    if (gameController.hasUsedActionCard) {
-      debugPrint('⚡ Aktionskarte verfügbar! Zeige Popup...');
-      Future.delayed(const Duration(milliseconds: 300), () {
-        _handleUseActionCard();
-      });
-    }
-  }
-
   void _handleUseActionCard() {
-    if (!gameController.hasUsedActionCard) {
-      debugPrint('❌ Keine Aktionskarte verfügbar');
-      return;
-    }
+    if (!gameController.hasUsedActionCard) return;
 
     final actionType = gameController.getPendingActionCard();
-    debugPrint('⚡ Zeige Aktionskarten-Popup für: $actionType');
 
     showDialog(
       context: context,
@@ -196,8 +131,6 @@ class _GameScreenState extends State<GameScreen> {
         playerCards: gameController.playerCards,
         aiCards: gameController.aiCards,
         onActionComplete: (result) {
-          debugPrint('⚡ Aktionskarten-Ergebnis: ${result.message}');
-
           setState(() {
             gameController.executeActionCard(result);
           });
@@ -209,7 +142,6 @@ class _GameScreenState extends State<GameScreen> {
           }
         },
         onSkip: () {
-          debugPrint('⚡ Aktionskarte übersprungen');
           setState(() {
             gameController.skipActionCard();
           });
@@ -279,31 +211,48 @@ class _GameScreenState extends State<GameScreen> {
           const Spacer(),
           DeckArea(
             topDiscardCard: gameController.topDiscardCard,
-            onDrawFromDeck: _handleDrawFromDeck,
-            onDrawFromDiscard: _handleDrawFromDiscard,
-            canDraw: turnSystemController.canPlayerAct &&
-                gameController.gamePhase == 'playing' &&
-                !gameController.hasDrawnThisTurn,
+            onDrawFromDeck: () {
+              if (turnSystemController.canPlayerAct) {
+                setState(() => gameController.drawRandomCard());
+              }
+            },
+            onDrawFromDiscard: () {
+              if (turnSystemController.canPlayerAct) {
+                setState(() => gameController.drawFromDiscard());
+              }
+            },
+            canDraw: GameUIHelpers.canDrawCards(turnSystemController, gameController),
           ),
           if (gameController.drawnCard != null)
             DrawnCardWidget(
               drawnCard: gameController.drawnCard!,
-              onDiscard: _handleDiscard,
+              onDiscard: () {
+                if (turnSystemController.canPlayerAct) {
+                  setState(() {
+                    gameController.discardDrawnCard();
+                    multiSelectController.resetSelection();
+                  });
+
+                  if (gameController.hasUsedActionCard) {
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      _handleUseActionCard();
+                    });
+                  }
+                }
+              },
               onSwap: _handleSwap,
               onUseActionCard: _handleUseActionCard,
               selectedCount: multiSelectController.selectedCount,
               hasActionCardAvailable: gameController.hasUsedActionCard,
               actionCardType: gameController.getPendingActionCard(),
             ),
-
-          // ZUSÄTZLICHER BUTTON: Falls Aktionskarte verfügbar ist
           if (gameController.hasUsedActionCard)
             Container(
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: ElevatedButton.icon(
                 onPressed: _handleUseActionCard,
                 icon: const Icon(Icons.flash_on),
-                label: Text('Aktionskarte verwenden (${ActionCardController.getActionName(gameController.getPendingActionCard()).split(' ')[0]})'),
+                label: Text(GameUIHelpers.getActionCardButtonText(gameController)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.purple,
                   foregroundColor: Colors.white,
@@ -311,10 +260,14 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
             ),
-
           PawsyButtonWidget(
-            onPawsy: _handlePawsy,
-            canCallPawsy: turnSystemController.canPlayerAct && gameController.canCallPawsy(),
+            onPawsy: () {
+              if (turnSystemController.canPlayerAct) {
+                setState(() => gameController.callPawsy());
+                _showPawsyMessage('PAWSY gerufen! Das Spiel endet bald...');
+              }
+            },
+            canCallPawsy: GameUIHelpers.canCallPawsy(turnSystemController, gameController),
           ),
           const Spacer(),
           PlayerArea(
@@ -324,9 +277,7 @@ class _GameScreenState extends State<GameScreen> {
             cardValues: gameController.playerCards,
             selectedCards: multiSelectController.selectedCards,
             onCardTap: _onCardTap,
-            canSelectCards: turnSystemController.canPlayerAct &&
-                ((gameController.gamePhase == 'look_at_cards' && gameController.cardsLookedAt < 2) ||
-                    (gameController.gamePhase == 'playing' && gameController.drawnCard != null)),
+            canSelectCards: GameUIHelpers.canSelectCards(turnSystemController, gameController),
           ),
           Padding(
             padding: const EdgeInsets.all(16),

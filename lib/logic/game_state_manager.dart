@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class GameStateManager {
   String gamePhase = 'look_at_cards';
   List<bool> playerCardsVisible = [false, false, false, false];
@@ -30,7 +32,7 @@ class GameStateManager {
   void switchPlayer() {
     final previousPlayer = currentPlayer;
     currentPlayer = currentPlayer == 'player' ? 'ai' : 'player';
-    print('🔄 Spielerwechsel: $previousPlayer → $currentPlayer');
+    debugPrint('🔄 Spielerwechsel: $previousPlayer → $currentPlayer');
   }
 
   void endTurn() {
