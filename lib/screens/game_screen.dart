@@ -148,26 +148,45 @@ class _GameScreenState extends State<GameScreen> {
   void _handleDrawFromDeck() {
     if (!turnSystemController.canPlayerAct) return;
     setState(() => gameController.drawRandomCard());
+    debugPrint('🎴 Karte vom Deck gezogen: ${gameController.drawnCard}');
   }
 
   void _handleDrawFromDiscard() {
     if (!turnSystemController.canPlayerAct) return;
     setState(() => gameController.drawFromDiscard());
+    debugPrint('🎴 Karte vom Ablagestapel gezogen: ${gameController.drawnCard}');
   }
 
   void _handleDiscard() {
     if (!turnSystemController.canPlayerAct) return;
+
+    final drawnCard = gameController.drawnCard;
+
     setState(() {
       gameController.discardDrawnCard();
       multiSelectController.resetSelection();
     });
+
+    debugPrint('🗑️ Karte $drawnCard abgelegt');
+
+    // WICHTIG: Prüfe NACH dem Ablegen ob Aktionskarte verfügbar ist
+    // (hasUsedActionCard wird nur bei Deck-Karten auf true gesetzt)
+    if (gameController.hasUsedActionCard) {
+      debugPrint('⚡ Aktionskarte verfügbar! Zeige Popup...');
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _handleUseActionCard();
+      });
+    }
   }
 
-  // NEU: Aktionskarten-Handler
   void _handleUseActionCard() {
-    if (!turnSystemController.canPlayerAct || !gameController.hasUsedActionCard) return;
+    if (!gameController.hasUsedActionCard) {
+      debugPrint('❌ Keine Aktionskarte verfügbar');
+      return;
+    }
 
     final actionType = gameController.getPendingActionCard();
+    debugPrint('⚡ Zeige Aktionskarten-Popup für: $actionType');
 
     showDialog(
       context: context,
@@ -177,6 +196,8 @@ class _GameScreenState extends State<GameScreen> {
         playerCards: gameController.playerCards,
         aiCards: gameController.aiCards,
         onActionComplete: (result) {
+          debugPrint('⚡ Aktionskarten-Ergebnis: ${result.message}');
+
           setState(() {
             gameController.executeActionCard(result);
           });
@@ -186,6 +207,12 @@ class _GameScreenState extends State<GameScreen> {
           } else {
             _showPenaltyMessage(result.message);
           }
+        },
+        onSkip: () {
+          debugPrint('⚡ Aktionskarte übersprungen');
+          setState(() {
+            gameController.skipActionCard();
+          });
         },
       ),
     );
@@ -268,6 +295,23 @@ class _GameScreenState extends State<GameScreen> {
               hasActionCardAvailable: gameController.hasUsedActionCard,
               actionCardType: gameController.getPendingActionCard(),
             ),
+
+          // ZUSÄTZLICHER BUTTON: Falls Aktionskarte verfügbar ist
+          if (gameController.hasUsedActionCard)
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              child: ElevatedButton.icon(
+                onPressed: _handleUseActionCard,
+                icon: const Icon(Icons.flash_on),
+                label: Text('Aktionskarte verwenden (${ActionCardController.getActionName(gameController.getPendingActionCard()).split(' ')[0]})'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+            ),
+
           PawsyButtonWidget(
             onPawsy: _handlePawsy,
             canCallPawsy: turnSystemController.canPlayerAct && gameController.canCallPawsy(),

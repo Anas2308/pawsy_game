@@ -7,6 +7,7 @@ class SmartAIController {
   List<String> seenCards = [];
   Map<String, int> remainingCardCount = {};
   List<String> playerRevealedCards = [];
+  int turnsPlayed = 0; // NEU: Zähle Züge
 
   SmartAIController() {
     _initializeDeck();
@@ -25,6 +26,7 @@ class SmartAIController {
     final indices = [0, 1, 2, 3]..shuffle(random);
     knownCards[indices[0]] = cards[indices[0]];
     knownCards[indices[1]] = cards[indices[1]];
+    turnsPlayed = 0; // Reset
 
     for (String card in cards) {
       _removeCardFromDeck(card);
@@ -66,6 +68,7 @@ class SmartAIController {
     required bool canDrawFromDiscard,
     required bool canCallPawsy,
   }) {
+    turnsPlayed++; // Zähle jeden Entscheidungszug
 
     if (drawnCard == null && canCallPawsy) {
       if (_shouldCallPawsyStrategic()) {
@@ -88,13 +91,47 @@ class SmartAIController {
     double myEstimatedScore = _calculateMyEstimatedScore();
     double opponentEstimatedScore = _calculateOpponentEstimatedScore();
 
-    debugPrint('🧠 KI Analysis: Meine Punkte ≈ $myEstimatedScore, Gegner ≈ $opponentEstimatedScore');
+    debugPrint('🧠 KI Analysis: Meine Punkte ≈ $myEstimatedScore, Gegner ≈ $opponentEstimatedScore, Züge: $turnsPlayed');
 
     int knownCardsCount = knownCards.where((c) => c != null && c != 'LEER').length;
 
-    return myEstimatedScore < 20 &&
-        myEstimatedScore < opponentEstimatedScore - 3 &&
-        knownCardsCount >= 3;
+    // VERBESSERTE PAWSY-LOGIK:
+
+    // 1. Aggressive PAWSY wenn KI deutlich im Vorteil
+    if (myEstimatedScore < opponentEstimatedScore - 5 && knownCardsCount >= 2) {
+      debugPrint('🐾 PAWSY Grund: Deutlicher Vorteil (${myEstimatedScore} vs ${opponentEstimatedScore})');
+      return true;
+    }
+
+    // 2. Sehr niedrige Punkte (unter 15) - fast immer PAWSY
+    if (myEstimatedScore <= 12 && knownCardsCount >= 3) {
+      debugPrint('🐾 PAWSY Grund: Sehr niedrige Punkte ($myEstimatedScore)');
+      return true;
+    }
+
+    // 3. Nach vielen Zügen (ab Zug 15) - aggressiver werden
+    if (turnsPlayed >= 15 && myEstimatedScore < opponentEstimatedScore && knownCardsCount >= 2) {
+      debugPrint('🐾 PAWSY Grund: Langes Spiel (Zug $turnsPlayed)');
+      return true;
+    }
+
+    // 4. Moderate Punkte aber trotzdem besser als Gegner
+    if (myEstimatedScore <= 18 && myEstimatedScore < opponentEstimatedScore - 2 && knownCardsCount >= 3) {
+      debugPrint('🐾 PAWSY Grund: Moderate Punkte aber im Vorteil');
+      return true;
+    }
+
+    // 5. Zufallsfaktor bei knappen Entscheidungen
+    if (myEstimatedScore < opponentEstimatedScore &&
+        myEstimatedScore <= 20 &&
+        knownCardsCount >= 3 &&
+        Random().nextDouble() < 0.25) { // 25% Chance
+      debugPrint('🐾 PAWSY Grund: Zufallsfaktor bei knapper Führung');
+      return true;
+    }
+
+    debugPrint('❌ Kein PAWSY: Score $myEstimatedScore vs $opponentEstimatedScore, bekannte Karten: $knownCardsCount');
+    return false;
   }
 
   double _calculateMyEstimatedScore() {
@@ -111,18 +148,24 @@ class SmartAIController {
     int unknownCount = _getActiveCardCount() - knownCount;
     if (unknownCount > 0) {
       double avgRemainingCardValue = _calculateAverageRemainingCardValue();
-      totalScore += unknownCount * avgRemainingCardValue;
+      // Optimistischere Schätzung für unbekannte Karten (20% besser)
+      totalScore += unknownCount * (avgRemainingCardValue * 0.8);
     }
 
     return totalScore;
   }
 
   double _calculateOpponentEstimatedScore() {
-    double baseEstimate = 6.5 * 4;
+    double baseEstimate = 6.5 * 4; // Standard-Durchschnitt
 
     if (playerRevealedCards.isNotEmpty) {
       double revealedAvg = playerRevealedCards.map(_getCardValue).reduce((a, b) => a + b) / playerRevealedCards.length;
       baseEstimate = revealedAvg * 4;
+    }
+
+    // Wenn viel Zeit vergangen ist, pessimistischere Schätzung für Gegner
+    if (turnsPlayed >= 10) {
+      baseEstimate *= 0.9; // Gegner wird besser mit der Zeit
     }
 
     return baseEstimate;
@@ -233,6 +276,7 @@ class SmartAIController {
     aiCards = ['?', '?', '?', '?'];
     seenCards.clear();
     playerRevealedCards.clear();
+    turnsPlayed = 0; // Reset
     _initializeDeck();
   }
 }

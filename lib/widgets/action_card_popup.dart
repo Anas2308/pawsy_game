@@ -6,6 +6,7 @@ class ActionCardPopup extends StatefulWidget {
   final List<String> playerCards;
   final List<String> aiCards;
   final Function(ActionCardResult) onActionComplete;
+  final VoidCallback? onSkip;
 
   const ActionCardPopup({
     super.key,
@@ -13,6 +14,7 @@ class ActionCardPopup extends StatefulWidget {
     required this.playerCards,
     required this.aiCards,
     required this.onActionComplete,
+    this.onSkip,
   });
 
   @override
@@ -66,7 +68,10 @@ class _ActionCardPopupState extends State<ActionCardPopup> {
           ),
         ),
         IconButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Navigator.of(context).pop();
+            widget.onSkip?.call();
+          },
           icon: const Icon(Icons.close, color: Colors.white),
         ),
       ],
@@ -119,10 +124,12 @@ class _ActionCardPopupState extends State<ActionCardPopup> {
             return GestureDetector(
               onTap: canSelect ? () => setState(() => selectedPlayerCard = index) : null,
               child: Container(
-                width: 40,
-                height: 56,
+                width: 50,
+                height: 70,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.yellow[700] : (canSelect ? Colors.blue[900] : Colors.grey[600]),
+                  color: isSelected
+                      ? Colors.yellow[700]
+                      : (canSelect ? Colors.blue[900] : Colors.grey[600]),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: isSelected ? Colors.yellow : Colors.white,
@@ -130,13 +137,32 @@ class _ActionCardPopupState extends State<ActionCardPopup> {
                   ),
                 ),
                 child: Center(
-                  child: Text(
-                    canSelect ? '${index + 1}' : 'X',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Pos ${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (canSelect)
+                        Text(
+                          '❓',
+                          style: const TextStyle(fontSize: 20),
+                        )
+                      else
+                        const Text(
+                          'X',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -164,10 +190,12 @@ class _ActionCardPopupState extends State<ActionCardPopup> {
             return GestureDetector(
               onTap: canSelect ? () => setState(() => selectedAICard = index) : null,
               child: Container(
-                width: 40,
-                height: 56,
+                width: 50,
+                height: 70,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.red[700] : (canSelect ? Colors.blue[900] : Colors.grey[600]),
+                  color: isSelected
+                      ? Colors.red[700]
+                      : (canSelect ? Colors.blue[900] : Colors.grey[600]),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: isSelected ? Colors.red : Colors.white,
@@ -175,13 +203,32 @@ class _ActionCardPopupState extends State<ActionCardPopup> {
                   ),
                 ),
                 child: Center(
-                  child: Text(
-                    canSelect ? '${index + 1}' : 'X',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'KI ${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (canSelect)
+                        Text(
+                          '❓',
+                          style: const TextStyle(fontSize: 20),
+                        )
+                      else
+                        const Text(
+                          'X',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -195,24 +242,40 @@ class _ActionCardPopupState extends State<ActionCardPopup> {
   Widget _buildActionButtons() {
     final canExecute = _canExecuteAction();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Column(
       children: [
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Abbrechen'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                widget.onSkip?.call();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Überspringen'),
+            ),
+            ElevatedButton(
+              onPressed: canExecute ? _executeAction : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canExecute ? _getActionColor() : Colors.grey,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Ausführen'),
+            ),
+          ],
         ),
-        ElevatedButton(
-          onPressed: canExecute ? _executeAction : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: canExecute ? _getActionColor() : Colors.grey,
-            foregroundColor: Colors.white,
+        const SizedBox(height: 8),
+        Text(
+          'Tipp: Du kannst die Aktionskarte auch überspringen',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 12,
           ),
-          child: const Text('Ausführen'),
+          textAlign: TextAlign.center,
         ),
       ],
     );
