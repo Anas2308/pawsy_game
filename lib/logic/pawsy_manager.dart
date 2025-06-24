@@ -33,21 +33,22 @@ class PawsyManager {
     if (pawsyCaller == null) return false;
 
     debugPrint('🐾 PAWSY aktiv: Noch $remainingTurnsAfterPawsy Züge übrig');
+    debugPrint('🐾 DEBUG: currentPlayer=${state.currentPlayer}, pawsyCaller=$pawsyCaller');
 
-    // NUR reduzieren wenn der VORHERIGE Spieler NICHT der PAWSY-Caller war
-    final previousPlayer = state.currentPlayer == 'player' ? 'ai' : 'player';
+    // WICHTIG: Der PAWSY-Caller reduziert NICHT den Zähler bei seinem eigenen Zug-Ende
+    if (state.currentPlayer == pawsyCaller) {
+      debugPrint('🐾 PAWSY-Caller beendet eigenen Zug - Zähler wird NICHT reduziert');
+      return false; // Spiel läuft weiter, aber Zähler nicht reduzieren
+    }
 
-    if (previousPlayer != pawsyCaller) {
-      remainingTurnsAfterPawsy--;
-      debugPrint('🐾 Zug reduziert: Noch $remainingTurnsAfterPawsy Züge übrig');
+    // Nur der ANDERE Spieler reduziert den Zähler
+    remainingTurnsAfterPawsy--;
+    debugPrint('🐾 Anderer Spieler beendet Zug: Noch $remainingTurnsAfterPawsy Züge übrig');
 
-      if (remainingTurnsAfterPawsy <= 0) {
-        debugPrint('🏁 Spiel beendet - keine Züge mehr übrig');
-        state.endGame();
-        return true; // Spiel beendet
-      }
-    } else {
-      debugPrint('🐾 PAWSY-Caller hat Zug beendet - Zähler nicht reduziert');
+    if (remainingTurnsAfterPawsy <= 0) {
+      debugPrint('🏁 Spiel beendet - keine Züge mehr übrig');
+      state.endGame();
+      return true; // Spiel beendet
     }
 
     return false; // Spiel läuft weiter

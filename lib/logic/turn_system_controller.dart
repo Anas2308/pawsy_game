@@ -14,8 +14,14 @@ class TurnSystemController {
   });
 
   Future<void> processNextTurn() async {
-    if (gameController.gamePhase != 'playing' && gameController.gamePhase != 'pawsy_called') return;
+    debugPrint('🔧 DEBUG processNextTurn: gamePhase=${gameController.gamePhase}, isAITurn=${gameController.isAITurn}, isProcessingAITurn=$isProcessingAITurn');
 
+    if (gameController.gamePhase != 'playing' && gameController.gamePhase != 'pawsy_called') {
+      debugPrint('🔧 DEBUG processNextTurn: Wrong phase, returning');
+      return;
+    }
+
+    // Nur AI-Züge verarbeiten, Player-Züge laufen über UI
     if (gameController.isAITurn && !isProcessingAITurn) {
       await _processAITurn();
     }
@@ -78,6 +84,7 @@ class TurnSystemController {
       }
     } finally {
       isProcessingAITurn = false;
+      debugPrint('🤖 KI Zug beendet: isProcessingAITurn=$isProcessingAITurn');
     }
   }
 
@@ -125,7 +132,11 @@ class TurnSystemController {
     multiSelectController.resetSelection();
   }
 
-  bool get canPlayerAct => gameController.isPlayerTurn && !isProcessingAITurn;
+  bool get canPlayerAct {
+    final result = gameController.isPlayerTurn && !isProcessingAITurn;
+    debugPrint('🔧 DEBUG canPlayerAct: isPlayerTurn=${gameController.isPlayerTurn}, isProcessingAITurn=$isProcessingAITurn → $result');
+    return result;
+  }
 
   String getCurrentPlayerName() {
     if (gameController.isPlayerTurn) return 'Du';
