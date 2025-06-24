@@ -166,9 +166,10 @@ class GameController {
   }
 
   bool canCallPawsy() {
-    return gamePhase == 'playing' &&
+    return gamePhase == 'playing' && // Nur in normaler Spielphase, nicht nach PAWSY
         !hasPerformedActionThisTurn &&
-        drawnCard == null;
+        drawnCard == null &&
+        pawsyCaller == null; // NEU: Nicht wenn bereits PAWSY gerufen wurde
   }
 
   // Aktionskarten-Methoden
@@ -393,15 +394,29 @@ class GameController {
     hasPerformedActionThisTurn = false;
     drawnFromDeck = false; // Reset flag bei Zugwechsel
 
+    // Spielerwechsel ZUERST
+    final previousPlayer = currentPlayer;
+    currentPlayer = currentPlayer == 'player' ? 'ai' : 'player';
+    debugPrint('🔄 Spielerwechsel: $previousPlayer → $currentPlayer');
+
     if (pawsyCaller != null) {
-      remainingTurnsAfterPawsy--;
-      if (remainingTurnsAfterPawsy <= 0) {
-        endGame();
-        return;
+      debugPrint('🐾 PAWSY aktiv: Noch $remainingTurnsAfterPawsy Züge übrig');
+
+      // NUR reduzieren wenn der VORHERIGE Spieler NICHT der PAWSY-Caller war
+      // Das bedeutet: Der andere Spieler hat gerade seinen Zug beendet
+      if (previousPlayer != pawsyCaller) {
+        remainingTurnsAfterPawsy--;
+        debugPrint('🐾 Zug reduziert: Noch $remainingTurnsAfterPawsy Züge übrig');
+
+        if (remainingTurnsAfterPawsy <= 0) {
+          debugPrint('🏁 Spiel beendet - keine Züge mehr übrig');
+          endGame();
+          return;
+        }
+      } else {
+        debugPrint('🐾 PAWSY-Caller hat Zug beendet - Zähler nicht reduziert');
       }
     }
-
-    currentPlayer = currentPlayer == 'player' ? 'ai' : 'player';
   }
 
   void nextTurn() {

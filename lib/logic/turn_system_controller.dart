@@ -14,7 +14,7 @@ class TurnSystemController {
   });
 
   Future<void> processNextTurn() async {
-    if (gameController.gamePhase != 'playing') return;
+    if (gameController.gamePhase != 'playing' && gameController.gamePhase != 'pawsy_called') return;
 
     if (gameController.isAITurn && !isProcessingAITurn) {
       await _processAITurn();
