@@ -94,9 +94,9 @@ class MinimalGameController {
         } else {
           aiCardsVisible = [false, false, false, false];
 
-          // Beide Spieler fertig → Spiel startet
+          // Beide Spieler fertig → Spiel startet mit Player
           gamePhase = 'playing';
-          currentPlayer = 'player';
+          currentPlayer = 'player';  // WICHTIG: Player startet!
           debugPrint('🎮 Spiel startet! Player beginnt');
         }
       });
@@ -109,8 +109,10 @@ class MinimalGameController {
 
     // KI schaut sich erste 2 Karten an
     for (int i = 0; i < 2; i++) {
-      Future.delayed(Duration(milliseconds: 500 * (i + 1)), () {
-        lookAtCard(availableIndices[i]);
+      Future.delayed(Duration(milliseconds: 800 * (i + 1)), () {
+        if (gamePhase == 'look_at_cards') {
+          lookAtCard(availableIndices[i]);
+        }
       });
     }
   }
@@ -303,7 +305,12 @@ class _MinimalGameScreenState extends State<MinimalGameScreen> {
     Future.doWhile(() async {
       await Future.delayed(const Duration(milliseconds: 1000));
 
-      if (mounted && controller.isAITurn && !controller.isGameEnded && !isAIThinking) {
+      // NUR in Playing Phase UND wenn KI am Zug ist
+      if (mounted &&
+          controller.gamePhase == 'playing' &&
+          controller.isAITurn &&
+          !controller.isGameEnded &&
+          !isAIThinking) {
         await _processAITurn();
       }
 
