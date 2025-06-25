@@ -1,10 +1,10 @@
 import 'ai_card_memory.dart';
-import 'ai_pawsy_strategy.dart';
-import 'smart_ai_controller.dart'; // für AIDecision
+import 'pawsy_controller.dart';
+import 'smart_ai_controller.dart';
 
 class AIDecisionMaker {
   final AICardMemory memory = AICardMemory();
-  final AIPawsyStrategy pawsyStrategy = AIPawsyStrategy();
+  final PawsyController pawsyController = PawsyController();
 
   AIDecision makeDecision({
     required String? drawnCard,
@@ -13,10 +13,10 @@ class AIDecisionMaker {
     required bool canDrawFromDiscard,
     required bool canCallPawsy,
   }) {
-    pawsyStrategy.incrementTurns();
+    pawsyController.incrementTurns();
 
     if (drawnCard == null && canCallPawsy) {
-      if (pawsyStrategy.shouldCallPawsy(memory)) {
+      if (pawsyController.shouldAICallPawsy(memory)) {
         return AIDecision.pawsy();
       }
     }
@@ -102,7 +102,7 @@ class AIDecisionMaker {
 
   void reset() {
     memory.reset();
-    pawsyStrategy.reset();
+    pawsyController.reset();
   }
 
   // Getters für Kompatibilität

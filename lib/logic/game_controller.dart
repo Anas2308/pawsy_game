@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'game_state_manager.dart';
-import 'pawsy_manager.dart';
+import 'pawsy_controller.dart';
 import 'card_operations.dart';
 import 'action_card_manager.dart';
 import 'action_card_controller.dart';
@@ -9,7 +9,7 @@ import 'multi_swap_controller.dart';
 
 class GameController {
   final GameStateManager state = GameStateManager();
-  final PawsyManager pawsy = PawsyManager();
+  final PawsyController pawsy = PawsyController();
   final CardOperations cards = CardOperations();
   final ActionCardManager actions = ActionCardManager();
   final SmartAIController smartAI = SmartAIController();
@@ -68,12 +68,9 @@ class GameController {
       return;
     }
 
-    // WICHTIG: drawnCard VOR dem Swap speichern!
     final originalDrawnCard = state.drawnCard!;
-
     cards.swapCard(state, cardIndex);
 
-    // KI über Kartenwechsel informieren (mit gespeicherter Karte)
     if (state.currentPlayer == 'player') {
       smartAI.updateCard(cardIndex, originalDrawnCard);
       debugPrint('🤖 KI informiert: Player Karte $cardIndex geändert zu $originalDrawnCard');
@@ -129,7 +126,6 @@ class GameController {
     _endTurn();
   }
 
-  // AI-Methoden
   Future<AIDecision> getAIDecision() async {
     return smartAI.makeDecision(
       drawnCard: state.drawnCard,
@@ -285,6 +281,7 @@ class GameController {
     debugPrint('🔧 DEBUG _endTurn: Start - currentPlayer=${state.currentPlayer}');
 
     state.endTurn();
+    pawsy.incrementTurns();
     debugPrint('🔧 DEBUG _endTurn: state.endTurn() completed');
 
     final gameEnded = pawsy.processTurnEnd(state);
@@ -314,7 +311,7 @@ class GameController {
   String getStatusText() {
     if (state.gamePhase == 'look_at_cards') {
       return 'Schaue dir 2 Karten an (${state.cardsLookedAt}/2)';
-    } else if (state.gamePhase == 'pawsy_called') {
+    } else if (pawsy.isPawsyPhase(state)) {
       return pawsy.getStatusText(state);
     } else if (state.gamePhase == 'game_ended') {
       final winner = state.getWinner();

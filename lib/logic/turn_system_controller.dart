@@ -14,14 +14,10 @@ class TurnSystemController {
   });
 
   Future<void> processNextTurn() async {
-    debugPrint('🔧 DEBUG processNextTurn: gamePhase=${gameController.gamePhase}, isAITurn=${gameController.isAITurn}, isProcessingAITurn=$isProcessingAITurn');
-
     if (gameController.gamePhase != 'playing' && gameController.gamePhase != 'pawsy_called') {
-      debugPrint('🔧 DEBUG processNextTurn: Wrong phase, returning');
       return;
     }
 
-    // Nur AI-Züge verarbeiten, Player-Züge laufen über UI
     if (gameController.isAITurn && !isProcessingAITurn) {
       await _processAITurn();
     }
@@ -29,7 +25,6 @@ class TurnSystemController {
 
   Future<void> _processAITurn() async {
     isProcessingAITurn = true;
-    debugPrint('🤖 KI beginnt Zug...');
 
     try {
       // Schritt 1: KI entscheidet was zu tun ist
@@ -41,8 +36,6 @@ class TurnSystemController {
       // Schritt 2: Führe KI-Entscheidung aus
       gameController.executeAIDecision(decision);
 
-      debugPrint('🤖 KI Aktion: ${decision.action}');
-
       // Schritt 3: Wenn KI Karte gezogen hat UND noch am Zug ist, zweite Entscheidung
       if (gameController.drawnCard != null && gameController.isAITurn) {
         await Future.delayed(const Duration(milliseconds: 1500));
@@ -52,23 +45,18 @@ class TurnSystemController {
         // WICHTIG: Prüfe ob zweite Entscheidung sinnvoll ist
         if (_isValidSecondDecision(secondDecision)) {
           gameController.executeAIDecision(secondDecision);
-          debugPrint('🤖 KI zweite Aktion: ${secondDecision.action}');
         } else {
-          // Fallback: Einfach ablegen wenn ungültige Entscheidung
-          debugPrint('🤖 KI Fallback: Karte ablegen');
           gameController.discardDrawnCard();
         }
       }
 
       // SICHERHEIT: Wenn KI immer noch eine Karte hat, force discard
       if (gameController.drawnCard != null && gameController.isAITurn) {
-        debugPrint('🤖 SICHERHEIT: Force discard');
         gameController.discardDrawnCard();
       }
 
       // SICHERHEIT: Wenn KI immer noch am Zug ist, force next turn
       if (gameController.isAITurn) {
-        debugPrint('🤖 SICHERHEIT: Force next turn');
         gameController.nextTurn();
       }
 
@@ -84,28 +72,21 @@ class TurnSystemController {
       }
     } finally {
       isProcessingAITurn = false;
-      debugPrint('🤖 KI Zug beendet: isProcessingAITurn=$isProcessingAITurn');
     }
   }
 
   bool _isValidSecondDecision(AIDecision decision) {
-    // Prüfe ob die zweite Entscheidung sinnvoll ist
     if (decision.isSwap && decision.cardIndex != null) {
-      // Einzeltausch ist immer ok
       return true;
     }
 
     if (decision.isMultiSwap && decision.cardIndices != null) {
-      // Multi-Swap nur wenn mindestens 2 Indizes
       if (decision.cardIndices!.length < 2) {
-        debugPrint('❌ Multi-Swap mit nur ${decision.cardIndices!.length} Karten');
         return false;
       }
 
-      // Prüfe ob alle Indizes gültig sind
       for (int index in decision.cardIndices!) {
         if (index < 0 || index >= 4) {
-          debugPrint('❌ Ungültiger Index: $index');
           return false;
         }
       }
@@ -114,29 +95,21 @@ class TurnSystemController {
     }
 
     if (decision.isDiscard) {
-      // Ablegen ist immer ok
       return true;
     }
 
-    // Alle anderen Aktionen sind für zweite Entscheidung ungültig
     return false;
   }
 
   void startPlayerTurn() {
-    debugPrint('👤 Spieler ist am Zug');
     multiSelectController.resetSelection();
   }
 
   void endPlayerTurn() {
-    debugPrint('👤 Spieler Zug beendet');
     multiSelectController.resetSelection();
   }
 
-  bool get canPlayerAct {
-    final result = gameController.isPlayerTurn && !isProcessingAITurn;
-    debugPrint('🔧 DEBUG canPlayerAct: isPlayerTurn=${gameController.isPlayerTurn}, isProcessingAITurn=$isProcessingAITurn → $result');
-    return result;
-  }
+  bool get canPlayerAct => gameController.isPlayerTurn && !isProcessingAITurn;
 
   String getCurrentPlayerName() {
     if (gameController.isPlayerTurn) return 'Du';
